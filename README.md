@@ -11,6 +11,7 @@ payload store    enter a key name, then paste JSON to save
 payload update   pick an existing key, then paste new JSON to replace it
 payload list     print key names only
 payload path     print the storage folder
+payload version  print the installed version
 ```
 
 Finish pasting with **Ctrl+Z then Enter** (Windows) or **Ctrl+D** (Unix).
@@ -33,7 +34,17 @@ curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" \
   https://raw.githubusercontent.com/snyype/payload-holder/main/install.sh | GITHUB_TOKEN=$GITHUB_TOKEN sh
 ```
 
-Options: `PAYLOAD_VERSION=v1.0.0` to pin a release, `INSTALL_DIR=...` to change the install folder.
+Re-running the installer checks the installed version (`payload version`): it does nothing if you
+already have the latest release, and updates in place if a newer one exists.
+
+Options: `PAYLOAD_VERSION=v1.0.0` to pin a release (also allows downgrading), `INSTALL_DIR=...` to
+change the install folder, `FORCE=1` to reinstall the same version.
+
+> **Windows Smart App Control:** if it is on, Windows blocks new unsigned programs, including
+> these binaries and local builds (`Permission denied` / "An Application Control policy has
+> blocked this file"). The fixes are code-signing the release binaries with a trusted
+> certificate, or turning Smart App Control off (Windows Security → App & browser control);
+> note it cannot be turned back on without resetting Windows.
 
 ## Releasing
 

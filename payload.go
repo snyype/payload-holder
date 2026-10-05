@@ -14,6 +14,9 @@ import (
 
 const windowsDefaultStore = `C:\payload`
 
+// version is set at release build time via -ldflags "-X main.version=vX.Y.Z".
+var version = "dev"
+
 // storeDir decides where payloads live.
 func storeDir() string {
 	if v := os.Getenv("PAYLOAD_STORE"); v != "" {
@@ -63,6 +66,8 @@ func main() {
 		}
 	case "path":
 		fmt.Println(dir)
+	case "version", "--version", "-v":
+		fmt.Println(version)
 	case "-h", "--help", "help":
 		usage()
 	default:
@@ -80,6 +85,7 @@ func usage() {
   payload update   pick an existing key, then paste new JSON to replace it
   payload list     print key names only
   payload path     print the storage folder
+  payload version  print the installed version
 
 Storage: one <key>.json file per key. Default C:\payload (override with PAYLOAD_STORE).`)
 }
