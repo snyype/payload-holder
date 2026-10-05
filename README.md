@@ -9,9 +9,13 @@ Each key is stored as its own file `<key>.json` in `C:\payload` (override with `
 
 ```
 payload          list saved keys, pick one, print its JSON
+payload <key>    print that key's JSON directly (no menu; pipe-friendly)
 payload store    enter a key name, then paste JSON to save
 payload update   pick an existing key, then paste new JSON to replace it
+payload drop     pick one or more keys to delete (e.g. 1 3 5-7, or all)
+payload drop <key> [<key>...]   delete the named keys
 payload list     print key names only
+payload table [page]   browse keys in a table, 10 per page (←/→ to page, enter to view)
 payload path     print the storage folder
 payload version  print the installed version
 ```

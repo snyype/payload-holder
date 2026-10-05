@@ -234,9 +234,12 @@ Select a key by number: <span class="k">2</span>
     <p class="sub">Everything it does, on one screen.</p>
     <table class="cmds">
       <tr><td><code>payload</code></td><td>List saved keys, pick one by number, print its JSON</td></tr>
+      <tr><td><code>payload &lt;key&gt;</code></td><td>Print that key's JSON directly — no menu, so you can pipe it</td></tr>
       <tr><td><code>payload store</code></td><td>Enter a key name, then paste JSON to save it (asks before overwriting)</td></tr>
       <tr><td><code>payload update</code></td><td>Pick an existing key, see its current JSON, paste the replacement</td></tr>
-      <tr><td><code>payload list</code></td><td>Print key names only — handy for scripts</td></tr>
+      <tr><td><code>payload drop [key...]</code></td><td>Delete the named keys, or pick several from a menu (<code>1 3 5-7</code> or <code>all</code>) — always asks to confirm</td></tr>
+      <tr><td><code>payload list</code></td><td>Print key names only — handy for scripts (also <code>payload | grep test</code>)</td></tr>
+      <tr><td><code>payload table [page]</code></td><td>Browse keys in a table, 10 per page — ←/→ to page, ↑/↓ to select, enter to view</td></tr>
       <tr><td><code>payload path</code></td><td>Print the storage folder</td></tr>
       <tr><td><code>payload version</code></td><td>Print the installed version</td></tr>
     </table>
