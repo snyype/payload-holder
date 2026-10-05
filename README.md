@@ -15,7 +15,35 @@ payload path     print the storage folder
 
 Finish pasting with **Ctrl+Z then Enter** (Windows) or **Ctrl+D** (Unix).
 
-## Build & install (Windows)
+## Install (prebuilt binary)
+
+From Git Bash (Windows), macOS or Linux:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/snyype/payload-holder/main/install.sh | sh
+```
+
+It downloads the right binary from the latest GitHub Release, installs it (`C:\payload` on Windows,
+`~/.local/bin` elsewhere) and adds that folder to PATH. Open a new terminal afterwards.
+
+While the repository is private, pass a GitHub token with read access to it:
+
+```sh
+curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" \
+  https://raw.githubusercontent.com/snyype/payload-holder/main/install.sh | GITHUB_TOKEN=$GITHUB_TOKEN sh
+```
+
+Options: `PAYLOAD_VERSION=v1.0.0` to pin a release, `INSTALL_DIR=...` to change the install folder.
+
+## Releasing
+
+Push a version tag; the `release` workflow builds Windows/Linux/macOS binaries and attaches them to a GitHub Release:
+
+```sh
+git tag v1.0.1 && git push origin v1.0.1
+```
+
+## Build & install from source (Windows)
 
 ```powershell
 go build -o payload.exe .
