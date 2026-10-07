@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/atotto/clipboard"
 )
 
 const windowsDefaultStore = `C:\payload`
@@ -67,6 +69,8 @@ func main() {
 		update(dir)
 	case "drop":
 		drop(dir, os.Args[2:])
+	case "copy", "cp":
+		copyCmd(dir, os.Args[2:])
 	case "list":
 		list(dir)
 	case "table":
@@ -93,6 +97,7 @@ func usage() {
 		{"payload <key>", "show that key's JSON directly (raw when piped)"},
 		{"payload store", "save a new key: name it, then paste JSON"},
 		{"payload update", "pick a key, then paste JSON to replace it"},
+		{"payload copy [key]", "copy a key's JSON to the clipboard (menu when no key)"},
 		{"payload drop", "tick one or more keys to delete"},
 		{"payload drop <key>...", "delete the named keys"},
 		{"payload list", "list saved keys (names only when piped)"},
@@ -284,32 +289,42 @@ func store(dir string) {
 		info("Aborted.")
 		return
 	}
-	readAndSave(key, filepath.Join(dir, key+".json"), "Saved")
+	readAndSave(key, filepath.Join(dir, key+".json"), "Saved", "")
 }
 
-// update lets the user pick an existing key, shows its current JSON, then replaces it.
+// update lets the user pick an existing key and edit its JSON in place
+// (on a console; otherwise it shows the current JSON and reads the replacement).
 func update(dir string) {
 	ks := savedKeys(dir)
 	if len(ks) == 0 {
 		return
 	}
 	key := pickKey("Which payload do you want to replace?", ks)
-	showPayload(key, readPayload(dir, key), true)
-	fmt.Println()
-	readAndSave(key, filepath.Join(dir, key+".json"), "Updated")
+	current := readPayload(dir, key)
+	if !interactive {
+		showPayload(key, current, true)
+		fmt.Println()
+	}
+	readAndSave(key, filepath.Join(dir, key+".json"), "Updated", string(current))
 }
 
-// readAndSave reads pasted JSON until EOF and writes it to target.
-func readAndSave(key, target, verb string) {
-	eof := "Ctrl+D"
-	if runtime.GOOS == "windows" {
-		eof = "Ctrl+Z then Enter"
-	}
-	fmt.Println(styleAccent.Render("? ") + "Paste the JSON for " + styleTitle.Render(key) +
-		styleMuted.Render(" — finish with "+eof))
-	data, err := io.ReadAll(in)
-	if err != nil {
-		fail("read error: %v", err)
+// readAndSave gets the JSON — from the editor on a console, else pasted until EOF — and writes it to target.
+func readAndSave(key, target, verb, initial string) {
+	var data []byte
+	if interactive {
+		data = []byte(editJSONTUI(key, initial))
+	} else {
+		eof := "Ctrl+D"
+		if runtime.GOOS == "windows" {
+			eof = "Ctrl+Z then Enter"
+		}
+		fmt.Println(styleAccent.Render("? ") + "Paste the JSON for " + styleTitle.Render(key) +
+			styleMuted.Render(" — finish with "+eof))
+		var err error
+		data, err = io.ReadAll(in)
+		if err != nil {
+			fail("read error: %v", err)
+		}
 	}
 	if strings.TrimSpace(string(data)) == "" {
 		fail("no JSON entered — nothing saved")
@@ -322,6 +337,38 @@ func readAndSave(key, target, verb string) {
 	if !json.Valid(data) {
 		warn("Saved as-is, but it is not valid JSON.")
 	}
+}
+
+// copyCmd puts the named key's JSON on the clipboard, or the key picked from a menu when none is named.
+func copyCmd(dir string, names []string) {
+	var key string
+	switch len(names) {
+	case 0:
+		if !interactive {
+			fail("usage: payload copy <key>")
+		}
+		ks := savedKeys(dir)
+		if len(ks) == 0 {
+			return
+		}
+		key = pickKey("Which payload do you want to copy?", ks)
+	case 1:
+		key = names[0]
+		if !validKey(key) {
+			fail("invalid key name %q", key)
+		}
+		if !exists(dir, key) {
+			fail("no saved key %q — run \"payload list\" to see saved keys", key)
+		}
+	default:
+		fail("copy takes one key, got %d", len(names))
+	}
+
+	data := readPayload(dir, key)
+	if err := clipboard.WriteAll(strings.TrimSpace(string(data))); err != nil {
+		fail("could not copy to clipboard: %v", err)
+	}
+	success("Copied %s to the clipboard %s", styleTitle.Render(key), styleMuted.Render("("+humanSize(len(data))+")"))
 }
 
 // drop deletes the named keys, or the keys picked from a list when none are named,

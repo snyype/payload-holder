@@ -200,17 +200,16 @@
     <div class="term" aria-label="Example terminal session">
       <div class="term-bar"><i></i><i></i><i></i><span>payload</span></div>
       <pre id="demo"><span class="p">$</span> payload store
-Enter key name: <span class="k">create_order</span>
-Paste JSON payload, then press Ctrl+Z then Enter:
-{"items":[{"sku":"A1","qty":2}],"currency":"USD"}
-<span class="m">^Z</span>
-Saved "create_order" -&gt; C:\payload\create_order.json
+<span class="m">?</span> Key name: <span class="k">create_order</span>
+<span class="m">── JSON editor · ↑↓←→ to move · ctrl+s save · esc cancel ──</span>
+ 1 {"items":[{"sku":"A1","qty":2}],"currency":"USD"}
+<span class="m">✓ valid JSON</span>
+✓ Saved create_order → C:\payload\create_order.json
 
-<span class="p">$</span> payload
-1) auth_login
-2) create_order
-Select a key by number: <span class="k">2</span>
-<span class="m">----- create_order -----</span>
+<span class="p">$</span> payload copy create_order
+✓ Copied create_order to the clipboard <span class="m">(49 B)</span>
+
+<span class="p">$</span> payload create_order
 {"items":[{"sku":"A1","qty":2}],"currency":"USD"}
 <span class="p">$</span> <span class="cursor"></span></pre>
     </div>
@@ -223,7 +222,7 @@ Select a key by number: <span class="k">2</span>
       <div class="card"><div class="ic">1×</div><h3>One binary, every shell</h3><p>Compiled Go with no runtime. The same exe behaves identically in cmd, PowerShell and Git Bash.</p></div>
       <div class="card"><div class="ic">{}</div><h3>One file per key</h3><p>Each key is <code>&lt;key&gt;.json</code> in <code>C:\payload</code> (or <code>~/payload</code>). Point <code>PAYLOAD_STORE</code> elsewhere if you like.</p></div>
       <div class="card"><div class="ic">↻</div><h3>Self-updating installer</h3><p>The install script checks <code>payload version</code> and only downloads when a newer release exists.</p></div>
-      <div class="card"><div class="ic">#</div><h3>Pick by number</h3><p>No need to remember key names — run <code>payload</code> and choose from a numbered menu.</p></div>
+      <div class="card"><div class="ic">⌨</div><h3>Edit with arrow keys</h3><p>Arrow-key menus to pick keys, and a JSON editor with live validation for <code>store</code> and <code>update</code>. <code>payload copy</code> puts a payload on your clipboard.</p></div>
       <div class="card"><div class="ic">✓</div><h3>Code-signed for Windows</h3><p>Windows releases are being enrolled in SignPath's free open-source signing, so Smart App Control lets them run.</p></div>
       <div class="card"><div class="ic">⌂</div><h3>Stays local</h3><p>No accounts, no network calls. Payloads never leave your machine.</p></div>
     </div>
@@ -233,17 +232,18 @@ Select a key by number: <span class="k">2</span>
     <h2>Commands</h2>
     <p class="sub">Everything it does, on one screen.</p>
     <table class="cmds">
-      <tr><td><code>payload</code></td><td>List saved keys, pick one by number, print its JSON</td></tr>
+      <tr><td><code>payload</code></td><td>Pick a saved key from an arrow-key menu and print its JSON</td></tr>
       <tr><td><code>payload &lt;key&gt;</code></td><td>Print that key's JSON directly — no menu, so you can pipe it</td></tr>
-      <tr><td><code>payload store</code></td><td>Enter a key name, then paste JSON to save it (asks before overwriting)</td></tr>
-      <tr><td><code>payload update</code></td><td>Pick an existing key, see its current JSON, paste the replacement</td></tr>
+      <tr><td><code>payload store</code></td><td>Enter a key name, then type or paste JSON in the editor (asks before overwriting)</td></tr>
+      <tr><td><code>payload update</code></td><td>Pick an existing key and edit its current JSON in place</td></tr>
+      <tr><td><code>payload copy [key]</code></td><td>Copy that key's JSON to the clipboard, or pick one from a menu when no key is given</td></tr>
       <tr><td><code>payload drop [key...]</code></td><td>Delete the named keys, or pick several from a menu (<code>1 3 5-7</code> or <code>all</code>) — always asks to confirm</td></tr>
       <tr><td><code>payload list</code></td><td>Print key names only — handy for scripts (also <code>payload | grep test</code>)</td></tr>
       <tr><td><code>payload table [page]</code></td><td>Browse keys in a table, 10 per page — ←/→ to page, ↑/↓ to select, enter to view</td></tr>
       <tr><td><code>payload path</code></td><td>Print the storage folder</td></tr>
       <tr><td><code>payload version</code></td><td>Print the installed version</td></tr>
     </table>
-    <p class="install-note">Finish pasting with <strong>Ctrl+Z then Enter</strong> on Windows, or <strong>Ctrl+D</strong> on macOS/Linux.</p>
+    <p class="install-note">In the JSON editor, arrow keys, Home/End and PgUp/PgDn move the cursor, <strong>Ctrl+S</strong> saves and <strong>Esc</strong> cancels. When input is piped (or in Git Bash), paste instead and finish with <strong>Ctrl+Z then Enter</strong> on Windows, or <strong>Ctrl+D</strong> on macOS/Linux.</p>
   </section>
 
   <section>

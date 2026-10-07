@@ -12,6 +12,7 @@ payload          list saved keys, pick one, print its JSON
 payload <key>    print that key's JSON directly (no menu; pipe-friendly)
 payload store    enter a key name, then paste JSON to save
 payload update   pick an existing key, then paste new JSON to replace it
+payload copy [key]   copy that key's JSON to the clipboard (menu when no key)
 payload drop     pick one or more keys to delete (e.g. 1 3 5-7, or all)
 payload drop <key> [<key>...]   delete the named keys
 payload list     print key names only
@@ -20,7 +21,10 @@ payload path     print the storage folder
 payload version  print the installed version
 ```
 
-Finish pasting with **Ctrl+Z then Enter** (Windows) or **Ctrl+D** (Unix).
+In a console (cmd, PowerShell, Windows Terminal), `store` and `update` open a JSON editor: arrow keys,
+Home/End and PgUp/PgDn move the cursor, a status line shows whether the JSON is valid, **Ctrl+S** saves and
+**Esc** cancels. `update` opens with the current JSON so you can edit it in place.
+When input is piped (or in Git Bash/mintty), paste instead and finish with **Ctrl+Z then Enter** (Windows) or **Ctrl+D** (Unix).
 
 ## Install (prebuilt binary)
 
