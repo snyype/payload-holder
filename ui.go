@@ -156,9 +156,14 @@ func showPayload(key string, data []byte, header bool) {
 	fmt.Println()
 	fmt.Println(rule)
 
-	// Small print under the rule, right-aligned: version and author.
-	foot := styleSmall.Render("payload "+version+" · ") +
-		hyperlink("https://github.com/snyype/", styleSmall.Render("@snyype"))
+	// Small print under the rule, right-aligned: version (plus any newer release) and author.
+	foot := styleSmall.Render("payload " + version + " · ")
+	if latest := knownNewerRelease(); latest != "" {
+		foot += styleWarn.Render(latest+" available") + styleSmall.Render(" — run ") +
+			styleCode.Render("payload doctor") + styleSmall.Render(" · ")
+		updateNoticeShown = latest
+	}
+	foot += hyperlink("https://github.com/snyype/", styleSmall.Render("@snyype"))
 	fmt.Println(strings.Repeat(" ", max(0, width-lipgloss.Width(foot))) + foot)
 }
 

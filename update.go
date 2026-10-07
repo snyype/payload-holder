@@ -156,11 +156,27 @@ func startUpdateCheck(cmd string) func() {
 			case <-time.After(1500 * time.Millisecond): // don't hold up a quick command
 			}
 		}
-		if newer(latest, version) {
+		if newer(latest, version) && latest != updateNoticeShown {
 			fmt.Fprintln(os.Stderr, styleWarn.Render("↑ ")+fmt.Sprintf("New version %s available (you have %s) — run: ",
 				latest, version)+styleCode.Render("payload doctor"))
 		}
 	}
+}
+
+// updateNoticeShown is the release a command already announced itself (e.g. in the payload view
+// footer), so the end-of-command notice doesn't repeat it.
+var updateNoticeShown string
+
+// knownNewerRelease returns the newer release found by the last daily check, if any. It reads the
+// cache only, so it never waits on the network.
+func knownNewerRelease() string {
+	if !updateCheckEnabled() || version == "dev" {
+		return ""
+	}
+	if latest := readUpdateCache().Latest; newer(latest, version) {
+		return latest
+	}
+	return ""
 }
 
 // stderrTTY reports whether notices on stderr will be seen by a person (not piped or redirected).
