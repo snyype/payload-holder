@@ -190,7 +190,7 @@
         <code><span class="p">$ </span><span id="install-cmd">curl -fsSL https://raw.githubusercontent.com/snyype/payload-holder/main/install.sh | sh</span></code>
         <button class="copy" data-copy="install-cmd" type="button">Copy</button>
       </div>
-      <p class="install-note">Run in Git Bash (Windows), macOS or Linux. Re-run any time to update — it skips if you're already on the latest release.</p>
+      <p class="install-note">Run in Git Bash (Windows), macOS or Linux. Re-run any time to update — it skips if you're already on the latest release. Every download is checked against the release's <code>SHA256SUMS</code>; on a mismatch it warns and installs nothing.</p>
 
       <div class="cta">
         <a class="btn primary" href="#download">Download</a>
@@ -326,6 +326,7 @@ go build -o payload.exe .   <span class="c"># or: go build -o payload .</span></
       </div>
     </div>
     <p class="install-note">Downloaded manually? Rename it to <code>payload</code> (<code>payload.exe</code> on Windows), put it in a folder on your PATH, and on macOS/Linux run <code>chmod +x payload</code>.</p>
+    <p class="install-note">To verify a manual download, get <code>SHA256SUMS</code> from the same release, put it next to the file and run <code>sha256sum -c SHA256SUMS --ignore-missing</code> (macOS: <code>shasum -a 256 -c SHA256SUMS --ignore-missing</code>). It should print <code>OK</code>.</p>
   </section>
 
   <section id="windows">

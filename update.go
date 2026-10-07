@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,10 +20,10 @@ import (
 	"github.com/mattn/go-isatty"
 )
 
-const (
-	repoURL       = "https://github.com/snyype/payload-holder"
-	checkInterval = 24 * time.Hour
-)
+const checkInterval = 24 * time.Hour
+
+// repoURL is the GitHub repository releases are fetched from (a variable so tests can point it elsewhere).
+var repoURL = "https://github.com/snyype/payload-holder"
 
 // updateCache remembers the last release check, so GitHub is asked at most once a day.
 type updateCache struct {
@@ -256,11 +258,16 @@ func doctor(dir string) {
 		}
 	}
 
-	if err != nil || !newer(latest, version) {
-		return // offline, up to date, or a local dev build (which may be ahead of the release)
+	if err != nil || !(version == "dev" || newer(latest, version)) {
+		return // offline or up to date
 	}
 	fmt.Println()
-	if !confirm(fmt.Sprintf("Update payload to %s?", latest), "Downloads the release from GitHub and replaces "+exe, "Update") {
+	question := fmt.Sprintf("Update payload to %s?", latest)
+	if version == "dev" {
+		// A local build may have changes the release lacks, so say what will happen.
+		question = fmt.Sprintf("Replace this dev build with release %s?", latest)
+	}
+	if !confirm(question, "Downloads the release from GitHub and replaces "+exe, "Update") {
 		info("Not updated.")
 		return
 	}
@@ -291,11 +298,18 @@ func selfUpdate(exe, tag string) error {
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(f, resp.Body)
+	hash := sha256.New()
+	_, err = io.Copy(io.MultiWriter(f, hash), resp.Body)
 	if cerr := f.Close(); err == nil {
 		err = cerr
 	}
 	if err != nil {
+		os.Remove(tmp)
+		return err
+	}
+
+	// Compare with the SHA256SUMS the release workflow published next to the binaries.
+	if err := verifyChecksum(tag, asset, hex.EncodeToString(hash.Sum(nil))); err != nil {
 		os.Remove(tmp)
 		return err
 	}
@@ -330,6 +344,43 @@ func selfUpdate(exe, tag string) error {
 	setupCmd := exec.Command(exe, "setup")
 	setupCmd.Stdout, setupCmd.Stderr = io.Discard, os.Stderr
 	_ = setupCmd.Run()
+	return nil
+}
+
+// verifyChecksum checks a downloaded asset's SHA-256 against the release's SHA256SUMS.
+// Releases published before checksums existed have no SHA256SUMS; those are noted and allowed.
+func verifyChecksum(tag, asset, actual string) error {
+	resp, err := (&http.Client{Timeout: 30 * time.Second}).Get(repoURL + "/releases/download/" + tag + "/SHA256SUMS")
+	if err != nil {
+		return fmt.Errorf("could not fetch SHA256SUMS: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		info("Release %s has no SHA256SUMS — skipping checksum verification.", tag)
+		return nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("could not fetch SHA256SUMS: %s", resp.Status)
+	}
+	sums, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	expected := ""
+	for _, line := range strings.Split(string(sums), "\n") {
+		if f := strings.Fields(line); len(f) == 2 && strings.TrimPrefix(f[1], "*") == asset {
+			expected = strings.ToLower(f[0])
+			break
+		}
+	}
+	if expected != actual {
+		if expected == "" {
+			expected = "<not listed>"
+		}
+		return fmt.Errorf("checksum mismatch for %s — expected %s, downloaded %s; nothing was changed",
+			asset, expected, actual)
+	}
+	info("Checksum verified (sha256 %s)", actual)
 	return nil
 }
 

@@ -38,6 +38,14 @@ jobs:
           done
           ls -la dist
 
+      # SHA-256 of every binary, published with the release; install.sh and "payload doctor" check
+      # downloads against it.
+      - name: Checksums
+        run: |
+          cd dist
+          sha256sum payload_* > SHA256SUMS
+          cat SHA256SUMS
+
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*

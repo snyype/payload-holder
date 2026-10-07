@@ -123,28 +123,69 @@ else
   echo "Installing payload $tag"
 fi
 
-if [ -z "${skip:-}" ]; then
-  mkdir -p "$INSTALL_DIR"
-  tmp="$(mktemp)"
-  trap 'rm -f "$tmp"' EXIT
-
-  echo "Downloading $asset..."
+# fetch NAME OUT downloads the release asset NAME of $tag into OUT; it fails quietly if it is missing.
+fetch() {
   if [ -n "$rel_json" ]; then
     # Private repo: find the asset's API url (listed just before its "name") and fetch it as a binary.
     asset_api="$(printf '%s\n' "$rel_json" | grep -E '"(url|name)"' |
-      grep -B1 "\"name\": *\"$asset\"" | grep '/releases/assets/' |
+      grep -B1 "\"name\": *\"$1\"" | grep '/releases/assets/' |
       sed -E 's/.*"url": *"([^"]+)".*/\1/' | head -n1)"
-    [ -n "$asset_api" ] || err "asset $asset not found in release $tag"
+    [ -n "$asset_api" ] || return 1
     curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/octet-stream" \
-      -o "$tmp" "$asset_api" || err "download failed"
+      -o "$2" "$asset_api"
   else
-    url="https://github.com/$REPO/releases/download/$tag/$asset"
-    curl -fsSL -o "$tmp" "$url" ||
-      err "download failed: $url (if the repo is private, set GITHUB_TOKEN)"
+    curl -fsSL -o "$2" "https://github.com/$REPO/releases/download/$tag/$1"
+  fi
+}
+
+# sha256 FILE prints the file's SHA-256, or nothing if no hashing tool is available.
+sha256() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  fi
+}
+
+if [ -z "${skip:-}" ]; then
+  mkdir -p "$INSTALL_DIR"
+  tmp="$(mktemp)"
+  sums="$(mktemp)"
+  trap 'rm -f "$tmp" "$sums"' EXIT
+
+  echo "Downloading $asset..."
+  fetch "$asset" "$tmp" ||
+    err "download of $asset ($tag) failed (if the repo is private, set GITHUB_TOKEN)"
+
+  # Compare against the SHA256SUMS that the release workflow published with the binaries.
+  if fetch SHA256SUMS "$sums" 2>/dev/null; then
+    expected="$(awk -v f="$asset" '$2 == f || $2 == "*" f { print $1; exit }' "$sums")"
+    actual="$(sha256 "$tmp")"
+    if [ -z "$actual" ]; then
+      echo "note: no sha256sum/shasum found — skipping checksum verification"
+    elif [ "$expected" != "$actual" ]; then
+      cat >&2 <<EOF
+
+  WARNING: checksum mismatch for $asset ($tag)
+    expected (GitHub release SHA256SUMS): ${expected:-<not listed>}
+    downloaded file:                      $actual
+
+  The download is corrupted or is not the binary built by this repository's release workflow.
+  Nothing was installed; your current payload (if any) is unchanged. Try again, and if it keeps
+  happening, report it at https://github.com/$REPO/issues
+
+EOF
+      exit 1
+    else
+      echo "Checksum verified (sha256 $actual)"
+    fi
+  else
+    echo "note: release $tag has no SHA256SUMS — skipping checksum verification"
   fi
 
   mv -f "$tmp" "$target"
   chmod +x "$target"
+  rm -f "$sums"
   trap - EXIT
   echo "Installed $target ($tag)"
   if [ -n "$old_target" ] && [ -f "$old_target" ] && [ "$old_target" != "$target" ]; then

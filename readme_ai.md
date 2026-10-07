@@ -73,7 +73,8 @@ session (it does not work over plain SSH).
 Once a day payload asks GitHub for the latest release tag. If it is newer, commands print
 `New version vX.Y.Z available (you have …) — run: payload doctor` on stderr (terminals only; never in
 piped output). Offline, it prints `Version check failed (no internet connection)` once a day.
-To update for the user: `echo y | payload doctor`. To disable the check: `"update_check": false` in
+To update for the user: `echo y | payload doctor` (it verifies the download against the release's
+`SHA256SUMS` and refuses a mismatch). To disable the check: `"update_check": false` in
 `customization/settings.json` or `PAYLOAD_NO_UPDATE_CHECK=1`.
 
 ## Customization
