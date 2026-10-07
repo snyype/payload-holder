@@ -94,6 +94,19 @@ func tableHeader(rows []tableRow, page int) string {
 		fmt.Sprintf("%d saved · page %d of %d", len(rows), page+1, pageCount(len(rows))))
 }
 
+// credit is "created by @snyype", with @snyype linking to the author's GitHub profile.
+func credit() string {
+	return styleMuted.Render("created by ") + hyperlink("https://github.com/snyype/", styleAccent.Render("@snyype"))
+}
+
+// hyperlink makes text clickable in terminals that support OSC 8 links; others just show the text.
+func hyperlink(url, text string) string {
+	if !stdoutTTY {
+		return text
+	}
+	return "\x1b]8;;" + url + "\x1b\\" + text + "\x1b]8;;\x1b\\"
+}
+
 // tableCmd shows the keys as a paged table: interactive on a console, otherwise one printed page.
 func tableCmd(dir string, args []string) {
 	rows := loadRows(dir)
@@ -120,7 +133,7 @@ func tableCmd(dir string, args []string) {
 		return
 	}
 
-	m, err := tea.NewProgram(tableModel{rows: rows, page: page}).Run()
+	m, err := tea.NewProgram(tableModel{dir: dir, rows: rows, page: page}).Run()
 	if err != nil {
 		fail("%v", err)
 	}
@@ -130,10 +143,14 @@ func tableCmd(dir string, args []string) {
 }
 
 type tableModel struct {
+	dir    string
 	rows   []tableRow
 	page   int
 	cursor int // index within the current page
 	chosen string
+	status string // result of the last copy or delete, shown under the table
+
+	confirmDrop string // key awaiting a y/N answer before it is deleted
 }
 
 func (m tableModel) Init() tea.Cmd { return nil }
@@ -148,47 +165,97 @@ func (m tableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	pages := pageCount(len(m.rows))
-	switch k.String() {
-	case "q", "esc", "ctrl+c":
+	m.status = ""
+	if k.String() == "ctrl+c" {
 		return m, tea.Quit
-	case "enter":
+	}
+	if m.confirmDrop != "" {
+		return m.answerDrop(k)
+	}
+	switch {
+	case pressed(k, "table", "quit"):
+		return m, tea.Quit
+	case pressed(k, "table", "delete"):
+		m.confirmDrop = m.rows[m.page*perPage+m.cursor].key
+	case pressed(k, "table", "copy"):
+		key := m.rows[m.page*perPage+m.cursor].key
+		data, err := os.ReadFile(filepath.Join(m.dir, key+".json"))
+		if err == nil {
+			err = copyText(strings.TrimSpace(string(data)))
+		}
+		if err != nil {
+			m.status = styleErr.Render("✗ could not copy " + key + ": " + err.Error())
+		} else {
+			m.status = styleOK.Render("✓ Copied " + key + " to the clipboard")
+		}
+	case pressed(k, "table", "view"):
 		m.chosen = m.rows[m.page*perPage+m.cursor].key
 		return m, tea.Quit
-	case "up", "k":
+	case pressed(k, "table", "up"):
 		if m.cursor > 0 {
 			m.cursor--
 		} else if m.page > 0 {
 			m.page--
 			m.cursor = m.onPage() - 1
 		}
-	case "down", "j":
+	case pressed(k, "table", "down"):
 		if m.cursor < m.onPage()-1 {
 			m.cursor++
 		} else if m.page < pages-1 {
 			m.page++
 			m.cursor = 0
 		}
-	case "right", "l", "pgdown", "n", " ":
+	case pressed(k, "table", "next_page"):
 		if m.page < pages-1 {
 			m.page++
 			m.cursor = min(m.cursor, m.onPage()-1)
 		}
-	case "left", "h", "pgup", "p":
+	case pressed(k, "table", "prev_page"):
 		if m.page > 0 {
 			m.page--
 		}
-	case "home", "g":
+	case pressed(k, "table", "first"):
 		m.page, m.cursor = 0, 0
-	case "end", "G":
+	case pressed(k, "table", "last"):
 		m.page = pages - 1
 		m.cursor = m.onPage() - 1
 	}
 	return m, nil
 }
 
+// answerDrop deletes the key awaiting confirmation on a confirm_delete key; any other key cancels.
+func (m tableModel) answerDrop(k tea.KeyMsg) (tea.Model, tea.Cmd) {
+	key := m.confirmDrop
+	m.confirmDrop = ""
+	if !pressed(k, "table", "confirm_delete") {
+		m.status = styleMuted.Render("Not deleted.")
+		return m, nil
+	}
+	if err := os.Remove(filepath.Join(m.dir, key+".json")); err != nil {
+		m.status = styleErr.Render("✗ could not delete " + key + ": " + err.Error())
+		return m, nil
+	}
+	i := m.page*perPage + m.cursor
+	m.rows = append(m.rows[:i:i], m.rows[i+1:]...)
+	m.status = styleOK.Render("✓ Deleted " + key)
+	if len(m.rows) == 0 {
+		m.status += styleMuted.Render(" · no payloads left")
+		return m, tea.Quit
+	}
+	m.page = min(m.page, pageCount(len(m.rows))-1)
+	m.cursor = min(m.cursor, m.onPage()-1)
+	return m, nil
+}
+
 func (m tableModel) View() string {
 	if m.chosen != "" {
 		return ""
+	}
+	if len(m.rows) == 0 {
+		return m.status + "\n"
+	}
+	if m.confirmDrop != "" {
+		m.status = styleWarn.Render("Delete "+m.confirmDrop+"? ") + styleMuted.Render(keyLabel("table", "confirm_delete")+" to delete · any other key cancels")
 	}
 	pages := pageCount(len(m.rows))
 	dots := make([]string, pages)
@@ -203,8 +270,11 @@ func (m tableModel) View() string {
 	if pages > 12 {
 		pager = styleAccent.Render(fmt.Sprintf("%d/%d", m.page+1, pages))
 	}
-	help := styleMuted.Render("←/→ page · ↑/↓ select · enter view · g/G first/last · q quit")
+	l := func(action string) string { return keyLabel("table", action) }
+	help := styleMuted.Render(fmt.Sprintf("%s/%s page · %s/%s select · %s view · %s copy · %s delete · %s/%s first/last · %s quit · ",
+		l("prev_page"), l("next_page"), l("up"), l("down"), l("view"), l("copy"), l("delete"), l("first"), l("last"), l("quit"))) + credit()
 	return tableHeader(m.rows, m.page) + "\n" +
 		renderPage(m.rows, m.page, m.cursor) + "\n" +
-		"  " + pager + "   " + help + "\n"
+		"  " + pager + "   " + help + "\n" +
+		m.status + "\n"
 }

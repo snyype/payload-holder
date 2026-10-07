@@ -16,8 +16,10 @@ payload copy [key]   copy that key's JSON to the clipboard (menu when no key)
 payload drop     pick one or more keys to delete (e.g. 1 3 5-7, or all)
 payload drop <key> [<key>...]   delete the named keys
 payload list     print key names only
-payload table [page]   browse keys in a table, 10 per page (←/→ to page, enter to view)
+payload table [page]   browse keys in a table, 10 per page (←/→ to page, enter to view, c to copy, d to delete)
 payload path     print the storage folder
+payload settings print the key-bindings settings file path
+payload setup    create the settings file if missing and refresh the AI README
 payload version  print the installed version
 ```
 
@@ -34,8 +36,19 @@ From Git Bash (Windows), macOS or Linux:
 curl -fsSL https://raw.githubusercontent.com/snyype/payload-holder/main/install.sh | sh
 ```
 
-It downloads the right binary from the latest GitHub Release, installs it (`C:\payload` on Windows,
-`~/.local/bin` elsewhere) and adds that folder to PATH. Open a new terminal afterwards.
+It downloads the right binary from the latest GitHub Release, sets up the payload folder
+(`C:\payload` on Windows, `~/payload` elsewhere) and adds its `bin` folder to PATH. Open a new terminal afterwards.
+
+```
+C:\payload\                    (~/payload on macOS/Linux)
+├── <key>.json                 your saved payloads
+├── README.md                  guide for AI assistants: what payload can do and how to drive it
+├── bin\payload.exe            the binary (on PATH)
+└── customization\
+    └── settings.json          key-binding overrides
+```
+
+Installs from v1.3.0 and earlier put the binary in `C:\payload` or `~/.local/bin`; the installer moves it into `bin`.
 
 While the repository is private, pass a GitHub token with read access to it:
 
@@ -50,47 +63,70 @@ already have the latest release, and updates in place if a newer one exists.
 Options: `PAYLOAD_VERSION=v1.0.0` to pin a release (also allows downgrading), `INSTALL_DIR=...` to
 change the install folder, `FORCE=1` to reinstall the same version.
 
-> **Windows Smart App Control:** if it is on, Windows blocks unsigned programs
-> (`Permission denied` / "An Application Control policy has blocked this file"). Windows release
-> binaries are code-signed (see [Code signing policy](#code-signing-policy)) so they run; local
-> unsigned builds may still be blocked.
+## Customization
+
+Key bindings for the table and the JSON editor live in `customization/settings.json` inside the payload
+folder (`payload settings` prints the path). The installer creates it with the defaults and never
+overwrites it. Each action takes a list of keys; settings **override** the defaults, so leaving an
+action out — or deleting the whole file — falls back to the built-in keys. **Ctrl+C** always quits.
+
+```json
+{
+  "keybinds": {
+    "table": {
+      "up": ["up", "k"],
+      "down": ["down", "j"],
+      "next_page": ["right", "l", "pgdown", "n", "space"],
+      "prev_page": ["left", "h", "pgup", "p"],
+      "first": ["home", "g"],
+      "last": ["end", "G"],
+      "view": ["enter"],
+      "copy": ["c"],
+      "delete": ["d", "delete"],
+      "confirm_delete": ["y", "Y"],
+      "quit": ["q", "esc"]
+    },
+    "editor": {
+      "save": ["ctrl+s"],
+      "cancel": ["esc"]
+    }
+  }
+}
+```
+
+Key names: letters as typed (case matters), `space`, `enter`, `esc`, `tab`, `backspace`, `delete`,
+`up`/`down`/`left`/`right`, `home`/`end`, `pgup`/`pgdown`, and modifiers such as `ctrl+s` or `alt+x`.
+Help lines show your keys. A broken file or an unknown action is reported and ignored. Run
+`payload setup` to recreate a deleted file.
+
+The installer also writes `README.md` into the payload folder: a guide for AI assistants (Claude,
+Copilot, …) on what payload can do, where payloads live, and how to use it without the interactive menus.
 
 ## Releasing
 
-Push a version tag; the `release` workflow builds Windows/Linux/macOS binaries, has the Windows
-binaries signed through SignPath, and attaches everything to a GitHub Release:
+Push a version tag; the `release` workflow builds Windows/Linux/macOS binaries and attaches them to a
+GitHub Release:
 
 ```sh
 git tag v1.0.1 && git push origin v1.0.1
 ```
 
-Each release-signing request must be approved in SignPath before the release is published.
+## If Windows blocks payload
 
-### SignPath setup (one-time)
+payload's Windows binaries are **not code-signed**. Windows doesn't let unsigned apps run while some of
+its protections are on, so you may see one of these. It happens because the binary is unsigned, not
+because Windows found anything harmful in it:
 
-Signing is skipped until these are configured in the GitHub repo (**Settings → Secrets and variables → Actions**):
+- **"Windows protected your PC" (SmartScreen)**, usually after downloading the `.exe` in a browser:
+  click **More info → Run anyway**.
+- **`Permission denied` / "An Application Control policy has blocked this file" (Smart App Control)**:
+  Smart App Control has no per-app allow list, so the only way to run payload is to turn it off:
+  **Windows Security → App & browser control → Smart App Control settings → Off**. On some Windows 11
+  versions it can't be switched back on afterwards without resetting Windows.
 
-| Kind | Name | Value |
-|---|---|---|
-| Secret | `SIGNPATH_API_TOKEN` | API token of a SignPath CI user with submitter rights |
-| Variable | `SIGNPATH_ORGANIZATION_ID` | SignPath organization ID |
-| Variable | `SIGNPATH_PROJECT_SLUG` | SignPath project slug, e.g. `payload-holder` |
-| Variable | `SIGNPATH_SIGNING_POLICY_SLUG` | `release-signing` (or `test-signing` while testing) |
-| Variable | `SIGNPATH_ARTIFACT_CONFIGURATION_SLUG` | slug of the artifact configuration from [`.signpath/artifact-configuration.xml`](.signpath/artifact-configuration.xml) |
-
-In SignPath, add the predefined **GitHub.com** trusted build system to the organization and link it to the project.
-
-## Code signing policy
-
-Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
-
-Team roles:
-
-- Committers and reviewers: [snyype](https://github.com/snyype)
-- Approvers: [snyype](https://github.com/snyype)
-
-Only binaries built by this repository's GitHub Actions `release` workflow from tagged source are signed,
-and every signing request is manually approved.
+It is safe to allow payload: it is open source (MIT), every release binary is built by GitHub Actions
+from this repository's tagged source, and it makes no network connections. If you'd rather check for
+yourself, [build it from source](#build--install-from-source-windows).
 
 **Privacy policy:** this program will not transfer any information to other networked systems unless
 specifically requested by the user or the person installing or operating it. Saved payloads stay in
@@ -100,10 +136,11 @@ the local storage folder (`C:\payload` / `~/payload`).
 
 ```powershell
 go build -o payload.exe .
-New-Item -ItemType Directory -Force -Path C:\payload | Out-Null
-Copy-Item .\payload.exe C:\payload\
+New-Item -ItemType Directory -Force -Path C:\payload\bin | Out-Null
+Copy-Item .\payload.exe C:\payload\bin\
+C:\payload\bin\payload.exe setup   # settings file + AI README
 $old = [Environment]::GetEnvironmentVariable('Path','User')
-if ($old -notlike '*C:\payload*') { [Environment]::SetEnvironmentVariable('Path', "$old;C:\payload", 'User') }
+if (($old -split ';') -notcontains 'C:\payload\bin') { [Environment]::SetEnvironmentVariable('Path', "$old;C:\payload\bin", 'User') }
 ```
 
 Open a new terminal afterwards so the PATH change applies.

@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/term"
 	"github.com/mattn/go-isatty"
 	"github.com/muesli/termenv"
 )
@@ -47,16 +48,16 @@ var (
 	jsonLit    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#7C3AED", Dark: "#C4B5FD"})
 	jsonPunct  = lipgloss.NewStyle().Foreground(muted)
 
-	styleBadge   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#052E1F")).Background(lipgloss.Color("#34D399")).Padding(0, 1)
-	styleTitle   = lipgloss.NewStyle().Bold(true)
-	styleMuted   = lipgloss.NewStyle().Foreground(muted)
-	styleAccent  = lipgloss.NewStyle().Foreground(accent).Bold(true)
-	styleOK      = lipgloss.NewStyle().Foreground(accent)
-	styleErr     = lipgloss.NewStyle().Foreground(danger)
-	styleWarn    = lipgloss.NewStyle().Foreground(warning)
-	styleCode    = lipgloss.NewStyle().Foreground(accent)
-	styleJSONBar = lipgloss.NewStyle().Border(lipgloss.ThickBorder(), false, false, false, true).
-			BorderForeground(accent).PaddingLeft(1)
+	styleBadge  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#052E1F")).Background(lipgloss.Color("#34D399")).Padding(0, 1)
+	styleTitle  = lipgloss.NewStyle().Bold(true)
+	styleMuted  = lipgloss.NewStyle().Foreground(muted)
+	styleAccent = lipgloss.NewStyle().Foreground(accent).Bold(true)
+	styleOK     = lipgloss.NewStyle().Foreground(accent)
+	styleErr    = lipgloss.NewStyle().Foreground(danger)
+	styleWarn   = lipgloss.NewStyle().Foreground(warning)
+	styleCode   = lipgloss.NewStyle().Foreground(accent)
+	styleRule   = lipgloss.NewStyle().Foreground(accent)
+	styleSmall  = lipgloss.NewStyle().Foreground(muted).Faint(true)
 )
 
 func theme() *huh.Theme {
@@ -137,7 +138,28 @@ func showPayload(key string, data []byte, header bool) {
 		meta += " · " + styleWarn.Render("not valid JSON")
 	}
 	fmt.Println(styleBadge.Render(key) + "  " + styleMuted.Render(meta))
-	fmt.Println(styleJSONBar.Render(body))
+
+	// Rules above and below with a blank line of space, but nothing on the JSON lines themselves,
+	// so selecting the body with the mouse copies plain JSON.
+	width := 0
+	for _, l := range strings.Split(body, "\n") {
+		width = max(width, lipgloss.Width(l))
+	}
+	if w, _, err := term.GetSize(os.Stdout.Fd()); err == nil && w > 0 {
+		width = min(width, w)
+	}
+	width = max(width, 20)
+	rule := styleRule.Render(strings.Repeat("━", width))
+	fmt.Println(rule)
+	fmt.Println()
+	fmt.Println(body)
+	fmt.Println()
+	fmt.Println(rule)
+
+	// Small print under the rule, right-aligned: version and author.
+	foot := styleSmall.Render("payload "+version+" · ") +
+		hyperlink("https://github.com/snyype/", styleSmall.Render("@snyype"))
+	fmt.Println(strings.Repeat(" ", max(0, width-lipgloss.Width(foot))) + foot)
 }
 
 // highlightJSON colors already-indented JSON text token by token.

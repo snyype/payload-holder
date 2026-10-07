@@ -1,13 +1,19 @@
 #!/bin/sh
 # Install or update the payload CLI from GitHub Releases and add it to PATH.
 #
+# Layout (the payload folder is C:\payload on Windows, ~/payload elsewhere, or $PAYLOAD_STORE):
+#   <folder>/bin/payload                    the binary (added to PATH)
+#   <folder>/customization/settings.json    key-binding overrides (created once, never overwritten)
+#   <folder>/README.md                      guide for AI assistants (refreshed on every install)
+#   <folder>/<key>.json                     your saved payloads
+#
 #   curl -fsSL https://raw.githubusercontent.com/snyype/payload-holder/main/install.sh | sh
 #
 # Works in Git Bash (Windows), macOS and Linux. Re-running it updates an older install and
 # does nothing if the installed version is already current.
 # Env overrides:
 #   PAYLOAD_VERSION   release tag to install (default: latest)
-#   INSTALL_DIR       where to put the binary (default: C:\payload on Windows, ~/.local/bin elsewhere)
+#   INSTALL_DIR       where to put the binary (default: <payload folder>/bin)
 #   GITHUB_TOKEN      token with repo read access — needed while the repository is private
 #   FORCE=1           reinstall even if the same version is already installed
 set -eu
@@ -46,15 +52,28 @@ esac
 
 ext=""
 bin="payload"
+old_target=""
 if [ "$os" = "windows" ]; then
   ext=".exe"
   bin="payload.exe"
-  INSTALL_DIR="${INSTALL_DIR:-/c/payload}"
+  root="/c/payload"
+  [ -n "${PAYLOAD_STORE:-}" ] && root="$(cygpath -u "$PAYLOAD_STORE")"
+  [ -z "${PAYLOAD_STORE:-}${INSTALL_DIR:-}" ] && old_target="/c/payload/payload.exe"
 else
-  INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
+  root="${PAYLOAD_STORE:-$HOME/payload}"
+  [ -z "${PAYLOAD_STORE:-}${INSTALL_DIR:-}" ] && old_target="$HOME/.local/bin/payload"
 fi
+INSTALL_DIR="${INSTALL_DIR:-$root/bin}"
 asset="payload_${os}_${arch}${ext}"
 target="$INSTALL_DIR/$bin"
+
+# Older versions installed the binary straight into C:\payload (Windows) or ~/.local/bin; move it
+# into the new bin folder so there is only one payload on PATH. (Renaming works on Windows even
+# while it is running.)
+if [ -n "$old_target" ] && [ ! -f "$target" ] && [ -f "$old_target" ] && [ "$old_target" != "$target" ]; then
+  mkdir -p "$INSTALL_DIR"
+  mv -f "$old_target" "$target" && echo "Moved $old_target -> $target"
+fi
 
 command -v curl >/dev/null 2>&1 || err "curl is required"
 
@@ -128,14 +147,21 @@ if [ -z "${skip:-}" ]; then
   chmod +x "$target"
   trap - EXIT
   echo "Installed $target ($tag)"
+  if [ -n "$old_target" ] && [ -f "$old_target" ] && [ "$old_target" != "$target" ]; then
+    rm -f "$old_target" 2>/dev/null || mv -f "$old_target" "$old_target.old" 2>/dev/null ||
+      echo "warning: could not remove the old $old_target — delete it so it does not shadow $target" >&2
+  fi
 
   if ! "$target" version >/dev/null 2>&1; then
     echo "warning: $target was installed but will not run." >&2
     if [ "$os" = "windows" ]; then
-      echo "         Windows Smart App Control blocks unsigned programs; see the README note." >&2
+      echo "         Windows blocks unsigned apps while Smart App Control is on; see \"If Windows blocks payload\" in the README." >&2
     fi
   fi
 fi
+
+# Settings file (only if missing) and the README.md guide for AI assistants.
+"$target" setup || echo "warning: \"payload setup\" failed; run it yourself later" >&2
 
 # Make sure INSTALL_DIR is on PATH.
 if [ "$os" = "windows" ]; then

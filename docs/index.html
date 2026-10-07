@@ -170,8 +170,9 @@
     <div class="navlinks">
       <a href="#install">Install</a>
       <a href="#commands">Commands</a>
+      <a href="#customization">Customize</a>
       <a href="#download">Download</a>
-      <a href="#signing">Code signing</a>
+      <a href="#windows">Windows help</a>
       <a class="gh" href="https://github.com/snyype/payload-holder">GitHub ↗</a>
     </div>
   </div>
@@ -223,7 +224,7 @@
       <div class="card"><div class="ic">{}</div><h3>One file per key</h3><p>Each key is <code>&lt;key&gt;.json</code> in <code>C:\payload</code> (or <code>~/payload</code>). Point <code>PAYLOAD_STORE</code> elsewhere if you like.</p></div>
       <div class="card"><div class="ic">↻</div><h3>Self-updating installer</h3><p>The install script checks <code>payload version</code> and only downloads when a newer release exists.</p></div>
       <div class="card"><div class="ic">⌨</div><h3>Edit with arrow keys</h3><p>Arrow-key menus to pick keys, and a JSON editor with live validation for <code>store</code> and <code>update</code>. <code>payload copy</code> puts a payload on your clipboard.</p></div>
-      <div class="card"><div class="ic">✓</div><h3>Code-signed for Windows</h3><p>Windows releases are being enrolled in SignPath's free open-source signing, so Smart App Control lets them run.</p></div>
+      <div class="card"><div class="ic">✓</div><h3>Open source</h3><p>MIT licensed, built by GitHub Actions from tagged source. Windows may warn because it is unsigned — <a href="#windows">here's why</a>.</p></div>
       <div class="card"><div class="ic">⌂</div><h3>Stays local</h3><p>No accounts, no network calls. Payloads never leave your machine.</p></div>
     </div>
   </section>
@@ -239,8 +240,10 @@
       <tr><td><code>payload copy [key]</code></td><td>Copy that key's JSON to the clipboard, or pick one from a menu when no key is given</td></tr>
       <tr><td><code>payload drop [key...]</code></td><td>Delete the named keys, or pick several from a menu (<code>1 3 5-7</code> or <code>all</code>) — always asks to confirm</td></tr>
       <tr><td><code>payload list</code></td><td>Print key names only — handy for scripts (also <code>payload | grep test</code>)</td></tr>
-      <tr><td><code>payload table [page]</code></td><td>Browse keys in a table, 10 per page — ←/→ to page, ↑/↓ to select, enter to view</td></tr>
+      <tr><td><code>payload table [page]</code></td><td>Browse keys in a table, 10 per page — ←/→ to page, ↑/↓ to select, enter to view, <code>c</code> to copy, <code>d</code> to delete</td></tr>
       <tr><td><code>payload path</code></td><td>Print the storage folder</td></tr>
+      <tr><td><code>payload settings</code></td><td>Print the path of the key-bindings settings file</td></tr>
+      <tr><td><code>payload setup</code></td><td>Create the settings file if it's missing and refresh the AI README (the installer runs this)</td></tr>
       <tr><td><code>payload version</code></td><td>Print the installed version</td></tr>
     </table>
     <p class="install-note">In the JSON editor, arrow keys, Home/End and PgUp/PgDn move the cursor, <strong>Ctrl+S</strong> saves and <strong>Esc</strong> cancels. When input is piped (or in Git Bash), paste instead and finish with <strong>Ctrl+Z then Enter</strong> on Windows, or <strong>Ctrl+D</strong> on macOS/Linux.</p>
@@ -256,9 +259,15 @@
     </div>
     <div class="panel" id="p-script" role="tabpanel">
 <pre>curl -fsSL https://raw.githubusercontent.com/snyype/payload-holder/main/install.sh | sh
-<span class="c"># Windows → C:\payload (added to your user PATH)
-# macOS / Linux → ~/.local/bin (added to your shell profile)</span></pre>
-      <p>Open a new terminal afterwards so the PATH change applies.</p>
+<span class="c"># Windows → C:\payload\bin (added to your user PATH)
+# macOS / Linux → ~/payload/bin (added to your shell profile)</span></pre>
+      <p>Open a new terminal afterwards so the PATH change applies. The installer lays out the payload folder like this, and moves an older install (in <code>C:\payload</code> or <code>~/.local/bin</code>) into <code>bin</code>:</p>
+<pre>C:\payload\                  <span class="c"># ~/payload on macOS / Linux</span>
+├── &lt;key&gt;.json               <span class="c"># your saved payloads</span>
+├── README.md                <span class="c"># guide for AI assistants</span>
+├── bin\payload.exe          <span class="c"># the binary, on PATH</span>
+└── customization\
+    └── settings.json        <span class="c"># key-binding overrides</span></pre>
     </div>
     <div class="panel" id="p-pin" role="tabpanel" hidden>
 <pre><span class="c"># install a specific release (also allows downgrading)</span>
@@ -271,8 +280,30 @@ curl -fsSL https://raw.githubusercontent.com/snyype/payload-holder/main/install.
 <pre>git clone https://github.com/snyype/payload-holder.git
 cd payload-holder
 go build -o payload.exe .   <span class="c"># or: go build -o payload .</span></pre>
-      <p>Needs Go 1.26+. On Windows with Smart App Control on, unsigned local builds may be blocked — use the signed release instead.</p>
+      <p>Needs Go 1.26+. On Windows with Smart App Control on, unsigned builds are blocked — see <a href="#windows">If Windows blocks payload</a>.</p>
     </div>
+  </section>
+
+  <section id="customization">
+    <h2>Customization</h2>
+    <p class="sub">Rebind any key in the table and the JSON editor. Your settings override the defaults — delete the file to go back.</p>
+    <p>Edit <code>customization/settings.json</code> in the payload folder (<code>payload settings</code> prints the path). Each action takes a list of keys; any action you leave out, or the whole file if you delete it, falls back to the built-in keys. <strong>Ctrl+C</strong> always quits, and the help lines show whatever keys you choose.</p>
+<pre>{
+  "keybinds": {
+    "table": {
+      "up": ["up", "k"],          "down": ["down", "j"],
+      "next_page": ["right", "l", "pgdown", "n", "space"],
+      "prev_page": ["left", "h", "pgup", "p"],
+      "first": ["home", "g"],     "last": ["end", "G"],
+      "view": ["enter"],          "copy": ["c"],
+      "delete": ["d", "delete"],  "confirm_delete": ["y", "Y"],
+      "quit": ["q", "esc"]
+    },
+    "editor": { "save": ["ctrl+s"], "cancel": ["esc"] }
+  }
+}</pre>
+    <p class="install-note">Key names: letters as typed (case matters), <code>space</code>, <code>enter</code>, <code>esc</code>, <code>tab</code>, <code>delete</code>, arrows (<code>up</code>, <code>left</code>, …), <code>home</code>/<code>end</code>, <code>pgup</code>/<code>pgdown</code>, and modifiers like <code>ctrl+s</code> or <code>alt+x</code>. The installer creates the file once and never overwrites it; run <code>payload setup</code> to recreate it.</p>
+    <p>The installer also writes a <code>README.md</code> into the payload folder that explains to AI assistants what payload can do, where payloads live and how to use it without the interactive menus. Point Claude, Copilot or any agent at it.</p>
   </section>
 
   <section id="download">
@@ -295,16 +326,15 @@ go build -o payload.exe .   <span class="c"># or: go build -o payload .</span></
     <p class="install-note">Downloaded manually? Rename it to <code>payload</code> (<code>payload.exe</code> on Windows), put it in a folder on your PATH, and on macOS/Linux run <code>chmod +x payload</code>.</p>
   </section>
 
-  <section id="signing">
-    <h2>Code signing policy</h2>
+  <section id="windows">
+    <h2>If Windows blocks payload</h2>
     <div class="policy">
-      <p>Free code signing provided by <a href="https://about.signpath.io">SignPath.io</a>, certificate by <a href="https://signpath.org">SignPath Foundation</a>.</p>
-      <p>Team roles:</p>
+      <p>payload's Windows binaries are <strong>not code-signed</strong>. Windows doesn't let unsigned apps run while some of its protections are on, so you may see one of these. It happens because the binary is unsigned, not because Windows found anything harmful in it.</p>
       <ul>
-        <li>Committers and reviewers: <a href="https://github.com/snyype">snyype</a></li>
-        <li>Approvers: <a href="https://github.com/snyype">snyype</a></li>
+        <li><strong>"Windows protected your PC" (SmartScreen)</strong>, usually after downloading the <code>.exe</code> in a browser: click <strong>More info → Run anyway</strong>.</li>
+        <li><strong><code>Permission denied</code> / "An Application Control policy has blocked this file" (Smart App Control)</strong>: Smart App Control has no per-app allow list, so the only way to run payload is to turn it off in <strong>Windows Security → App &amp; browser control → Smart App Control settings → Off</strong>. On some Windows 11 versions it can't be switched back on afterwards without resetting Windows.</li>
       </ul>
-      <p>Only binaries built by this repository's GitHub Actions release workflow from tagged source are signed, and every signing request is manually approved.</p>
+      <p>It is safe to allow payload: it is open source (MIT), every release binary is built by GitHub Actions from this repository's tagged source, and it makes no network connections. Prefer to check for yourself? Build it from source (see <em>Install options</em>).</p>
       <p><strong>Privacy policy:</strong> this program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.</p>
     </div>
   </section>

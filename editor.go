@@ -53,16 +53,16 @@ func (m editorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ta.SetWidth(msg.Width)
 		m.ta.SetHeight(max(3, msg.Height-3)) // header + footer + spacing
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+s":
+		switch {
+		case msg.String() == "ctrl+c" || pressed(msg, "editor", "cancel"):
+			return m, tea.Quit
+		case pressed(msg, "editor", "save"):
 			if strings.TrimSpace(m.ta.Value()) == "" {
 				return m, nil
 			}
 			m.saved = true
 			return m, tea.Quit
-		case "esc", "ctrl+c":
-			return m, tea.Quit
-		case "tab":
+		case msg.String() == "tab":
 			m.ta.InsertString("  ")
 			return m, nil
 		}
@@ -86,6 +86,7 @@ func (m editorModel) View() string {
 			status = styleOK.Render("✓ valid JSON")
 		}
 	}
-	help := styleMuted.Render("ctrl+s save · esc cancel · arrows/home/end/pgup/pgdn move")
+	help := styleMuted.Render(keyLabel("editor", "save") + " save · " + keyLabel("editor", "cancel") +
+		" cancel · arrows/home/end/pgup/pgdn move")
 	return header + "\n" + m.ta.View() + "\n" + status + "   " + help
 }

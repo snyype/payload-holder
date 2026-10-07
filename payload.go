@@ -11,8 +11,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/atotto/clipboard"
 )
 
 const windowsDefaultStore = `C:\payload`
@@ -48,12 +46,17 @@ func validKey(k string) bool {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == holdArg {
+		runClipboardHolder()
+		return
+	}
 	initTerminal()
 
 	dir := storeDir()
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		fail("cannot create store dir: %v", err)
 	}
+	loadSettings()
 
 	cmd := ""
 	if len(os.Args) > 1 {
@@ -77,6 +80,10 @@ func main() {
 		tableCmd(dir, os.Args[2:])
 	case "path":
 		fmt.Println(dir)
+	case "settings":
+		settingsCmd()
+	case "setup":
+		setup()
 	case "version", "--version", "-v":
 		fmt.Println(version)
 	case "-h", "--help", "help":
@@ -103,6 +110,8 @@ func usage() {
 		{"payload list", "list saved keys (names only when piped)"},
 		{"payload table [page]", "browse keys in a table, 10 per page"},
 		{"payload path", "print the storage folder"},
+		{"payload settings", "print the key-bindings settings file path"},
+		{"payload setup", "create the settings file if missing and refresh README.md"},
 		{"payload version", "print the installed version"},
 	}
 	fmt.Println(styleBadge.Render("payload") + "  " + styleMuted.Render("save & retrieve named JSON payloads"))
@@ -112,6 +121,7 @@ func usage() {
 	}
 	fmt.Println()
 	fmt.Println(styleMuted.Render("  Storage: one <key>.json per key in " + storeDir() + " (override with PAYLOAD_STORE)."))
+	fmt.Println(styleMuted.Render("  Key bindings: " + settingsPath() + " (delete it to use the defaults)."))
 }
 
 // keys returns the sorted key names (file names without the .json suffix).
@@ -365,7 +375,7 @@ func copyCmd(dir string, names []string) {
 	}
 
 	data := readPayload(dir, key)
-	if err := clipboard.WriteAll(strings.TrimSpace(string(data))); err != nil {
+	if err := copyText(strings.TrimSpace(string(data))); err != nil {
 		fail("could not copy to clipboard: %v", err)
 	}
 	success("Copied %s to the clipboard %s", styleTitle.Render(key), styleMuted.Render("("+humanSize(len(data))+")"))
