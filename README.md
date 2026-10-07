@@ -22,6 +22,8 @@ payload settings print the key-bindings settings file path
 payload setup    create the settings file if missing and refresh the AI README
 payload version  print the installed version
 payload doctor   check the install; update to the latest release if there is one
+payload fix      reinstall the version you're on (verified against its SHA256SUMS)
+payload fix --verify   check the installed binary against its release's SHA256SUMS (changes nothing)
 ```
 
 In a console (cmd, PowerShell, Windows Terminal), `store` and `update` open a JSON editor: arrow keys,
@@ -123,7 +125,9 @@ day. The notice goes to stderr and only appears on a terminal, so piped output i
 `payload doctor` checks the install (version, binary and PATH, storage, settings, and on Linux the
 clipboard) and, when a newer release exists, offers to update in place: it downloads the release for
 your OS, checks it against the release's `SHA256SUMS`, makes sure it runs, swaps it in and refreshes
-the AI README. Turn the daily check off with
+the AI README. If an install seems broken,
+`payload fix --verify` re-downloads the checksums for your version and checks the installed binary, and
+`payload fix` reinstalls that same version (it also recreates a missing settings file). Turn the daily check off with
 `"update_check": false` in `settings.json` or `PAYLOAD_NO_UPDATE_CHECK=1`.
 
 ## AI assistants

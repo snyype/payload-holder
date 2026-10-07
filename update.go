@@ -80,13 +80,18 @@ func latestRelease(timeout time.Duration) (string, error) {
 // checkFailure describes a failed release check: "no internet connection" when GitHub could not be
 // reached at all (DNS, connect or timeout errors), otherwise the error itself.
 func checkFailure(err error) string {
+	return "version check failed (" + networkProblem(err) + ")"
+}
+
+// networkProblem is "no internet connection" when GitHub could not be reached at all, else the error.
+func networkProblem(err error) string {
 	var netErr net.Error
 	var opErr *net.OpError
 	var dnsErr *net.DNSError
 	if errors.As(err, &dnsErr) || errors.As(err, &opErr) || (errors.As(err, &netErr) && netErr.Timeout()) {
-		return "version check failed (no internet connection)"
+		return "no internet connection"
 	}
-	return "version check failed (" + err.Error() + ")"
+	return err.Error()
 }
 
 // newer reports whether release tag a is newer than b (both like v1.2.3).
@@ -295,10 +300,7 @@ func doctor(dir string) {
 
 // selfUpdate downloads release tag for this OS/arch, checks it runs, and swaps it in for exe.
 func selfUpdate(exe, tag string) error {
-	asset := fmt.Sprintf("payload_%s_%s", runtime.GOOS, runtime.GOARCH)
-	if runtime.GOOS == "windows" {
-		asset += ".exe"
-	}
+	asset := releaseAsset()
 	info("Downloading %s %s...", asset, tag)
 	resp, err := (&http.Client{Timeout: 2 * time.Minute}).Get(repoURL + "/releases/download/" + tag + "/" + asset)
 	if err != nil {
@@ -366,28 +368,13 @@ func selfUpdate(exe, tag string) error {
 // verifyChecksum checks a downloaded asset's SHA-256 against the release's SHA256SUMS.
 // Releases published before checksums existed have no SHA256SUMS; those are noted and allowed.
 func verifyChecksum(tag, asset, actual string) error {
-	resp, err := (&http.Client{Timeout: 30 * time.Second}).Get(repoURL + "/releases/download/" + tag + "/SHA256SUMS")
-	if err != nil {
-		return fmt.Errorf("could not fetch SHA256SUMS: %v", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusNotFound {
-		info("Release %s has no SHA256SUMS — skipping checksum verification.", tag)
-		return nil
-	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("could not fetch SHA256SUMS: %s", resp.Status)
-	}
-	sums, err := io.ReadAll(resp.Body)
+	expected, hasSums, err := expectedChecksum(tag, asset)
 	if err != nil {
 		return err
 	}
-	expected := ""
-	for _, line := range strings.Split(string(sums), "\n") {
-		if f := strings.Fields(line); len(f) == 2 && strings.TrimPrefix(f[1], "*") == asset {
-			expected = strings.ToLower(f[0])
-			break
-		}
+	if !hasSums {
+		info("Release %s has no SHA256SUMS — skipping checksum verification.", tag)
+		return nil
 	}
 	if expected != actual {
 		if expected == "" {
@@ -398,6 +385,102 @@ func verifyChecksum(tag, asset, actual string) error {
 	}
 	info("Checksum verified (sha256 %s)", actual)
 	return nil
+}
+
+// expectedChecksum returns asset's SHA-256 from release tag's SHA256SUMS ("" if not listed).
+// hasSums is false for releases published before checksums existed.
+func expectedChecksum(tag, asset string) (sum string, hasSums bool, err error) {
+	resp, err := (&http.Client{Timeout: 30 * time.Second}).Get(repoURL + "/releases/download/" + tag + "/SHA256SUMS")
+	if err != nil {
+		return "", false, errors.New("could not fetch SHA256SUMS (" + networkProblem(err) + ")")
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return "", false, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", false, fmt.Errorf("could not fetch SHA256SUMS: %s", resp.Status)
+	}
+	sums, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", false, err
+	}
+	for _, line := range strings.Split(string(sums), "\n") {
+		if f := strings.Fields(line); len(f) == 2 && strings.TrimPrefix(f[1], "*") == asset {
+			return strings.ToLower(f[0]), true, nil
+		}
+	}
+	return "", true, nil
+}
+
+// releaseAsset is the release file name of the binary for this OS/arch.
+func releaseAsset() string {
+	asset := fmt.Sprintf("payload_%s_%s", runtime.GOOS, runtime.GOARCH)
+	if runtime.GOOS == "windows" {
+		asset += ".exe"
+	}
+	return asset
+}
+
+// --- fix --------------------------------------------------------------------------------------
+
+// fixCmd reinstalls the current release ("payload fix") or only checks the installed binary
+// against that release's SHA256SUMS ("payload fix --verify").
+func fixCmd(args []string) {
+	verifyOnly := false
+	for _, a := range args {
+		switch a {
+		case "--verify", "-verify":
+			verifyOnly = true
+		default:
+			fail("unknown option %q — usage: payload fix [--verify]", a)
+		}
+	}
+	if version == "dev" {
+		fail("this is a local dev build, which has no release to compare with — run \"payload doctor\" to install the latest release")
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		fail("%v", err)
+	}
+	exe, _ = filepath.EvalSymlinks(exe)
+
+	if verifyOnly {
+		verifyInstalled(exe)
+		return
+	}
+	info("Reinstalling payload %s...", version)
+	if err := selfUpdate(exe, version); err != nil {
+		fail("reinstall failed: %v", err)
+	}
+	success("Reinstalled payload %s → %s", styleTitle.Render(version), styleMuted.Render(exe))
+}
+
+// verifyInstalled hashes the installed binary and compares it with the release's SHA256SUMS.
+func verifyInstalled(exe string) {
+	asset := releaseAsset()
+	expected, hasSums, err := expectedChecksum(version, asset)
+	if err != nil {
+		fail("%v", err)
+	}
+	if !hasSums {
+		warn("Release %s has no SHA256SUMS, so it can't be verified. Run \"payload fix\" to reinstall it, or \"payload doctor\" to update.", version)
+		return
+	}
+	data, err := os.ReadFile(exe)
+	if err != nil {
+		fail("cannot read %s: %v", exe, err)
+	}
+	sum := sha256.Sum256(data)
+	actual := hex.EncodeToString(sum[:])
+	if expected == "" {
+		fail("%s is not listed in the %s SHA256SUMS", asset, version)
+	}
+	if actual != expected {
+		fail("checksum mismatch: %s does not match release %s\n  expected %s\n  found    %s\nRun \"payload fix\" to reinstall %s.",
+			exe, version, expected, actual, version)
+	}
+	success("%s matches release %s %s", exe, version, styleMuted.Render("(sha256 "+actual+")"))
 }
 
 // cleanupOldBinary removes the copy a Windows self-update left behind.

@@ -36,6 +36,8 @@ cannot be empty, `.` or `..`, or contain any of `/ \ : * ? " < > |`.
 | `payload settings` | Print the settings file path | yes |
 | `payload setup` | Create `customization/settings.json` if missing and rewrite this README | yes |
 | `payload version` | Print the version | yes |
+| `payload fix` | Reinstall the current version from its release (checksum-verified; recreates a missing settings file) | yes |
+| `payload fix --verify` | Check the installed binary against its release's SHA256SUMS; exit 1 on mismatch | yes |
 | `payload doctor` | Check the install; offers to update when a newer release exists (answers y/N) | yes; pipe `y` to update |
 | `payload` (no arguments) | Interactive picker; prints key names when piped | piped only |
 

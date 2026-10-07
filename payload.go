@@ -69,6 +69,8 @@ func main() {
 	switch cmd {
 	case "doctor":
 		doctor(dir)
+	case "fix":
+		fixCmd(os.Args[2:])
 	case "":
 		retrieve(dir)
 	case "store":
@@ -119,6 +121,8 @@ func usage() {
 		{"payload setup", "create the settings file if missing and refresh README.md"},
 		{"payload version", "print the installed version"},
 		{"payload doctor", "check the install and update to the latest release"},
+		{"payload fix", "reinstall the version you're on (verified download)"},
+		{"payload fix --verify", "check the installed binary against its release checksum"},
 	}
 	fmt.Println(styleBadge.Render("payload") + "  " + styleMuted.Render("save & retrieve named JSON payloads"))
 	fmt.Println()
