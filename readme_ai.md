@@ -36,6 +36,7 @@ cannot be empty, `.` or `..`, or contain any of `/ \ : * ? " < > |`.
 | `payload settings` | Print the settings file path | yes |
 | `payload setup` | Create `customization/settings.json` if missing and rewrite this README | yes |
 | `payload version` | Print the version | yes |
+| `payload doctor` | Check the install; offers to update when a newer release exists (answers y/N) | yes; pipe `y` to update |
 | `payload` (no arguments) | Interactive picker; prints key names when piped | piped only |
 
 Commands without a key (`payload`, `payload update`, `payload drop`, `payload copy`) open interactive
@@ -67,6 +68,14 @@ Saving accepts any text; it warns, but still saves, when the content is not vali
 small background process, as `xclip` does, until something else is copied. That needs a graphical
 session (it does not work over plain SSH).
 
+## Updates
+
+Once a day payload asks GitHub for the latest release tag. If it is newer, commands print
+`New version vX.Y.Z available (you have …) — run: payload doctor` on stderr (terminals only; never in
+piped output). Offline, it prints `Version check failed (no internet connection)` once a day.
+To update for the user: `echo y | payload doctor`. To disable the check: `"update_check": false` in
+`customization/settings.json` or `PAYLOAD_NO_UPDATE_CHECK=1`.
+
 ## Customization
 
 `customization/settings.json` overrides key bindings for the interactive table and JSON editor.
@@ -75,6 +84,7 @@ below. Ctrl+C always quits.
 
 ```json
 {
+  "update_check": true,
   "keybinds": {
     "table": {
       "up": ["up", "k"],

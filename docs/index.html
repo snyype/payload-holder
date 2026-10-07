@@ -225,7 +225,7 @@
       <div class="card"><div class="ic">↻</div><h3>Self-updating installer</h3><p>The install script checks <code>payload version</code> and only downloads when a newer release exists.</p></div>
       <div class="card"><div class="ic">⌨</div><h3>Edit with arrow keys</h3><p>Arrow-key menus to pick keys, and a JSON editor with live validation for <code>store</code> and <code>update</code>. <code>payload copy</code> puts a payload on your clipboard.</p></div>
       <div class="card"><div class="ic">✓</div><h3>Open source</h3><p>MIT licensed, built by GitHub Actions from tagged source. Windows may warn because it is unsigned — <a href="#windows">here's why</a>.</p></div>
-      <div class="card"><div class="ic">⌂</div><h3>Stays local</h3><p>No accounts, no network calls. Payloads never leave your machine.</p></div>
+      <div class="card"><div class="ic">⌂</div><h3>Stays local</h3><p>No accounts. Payloads never leave your machine — the only network call is a daily check for new releases, which you can turn off.</p></div>
     </div>
   </section>
 
@@ -245,6 +245,7 @@
       <tr><td><code>payload settings</code></td><td>Print the path of the key-bindings settings file</td></tr>
       <tr><td><code>payload setup</code></td><td>Create the settings file if it's missing and refresh the AI README (the installer runs this)</td></tr>
       <tr><td><code>payload version</code></td><td>Print the installed version</td></tr>
+      <tr><td><code>payload doctor</code></td><td>Check the install and, when a newer release exists, update in place</td></tr>
     </table>
     <p class="install-note">In the JSON editor, arrow keys, Home/End and PgUp/PgDn move the cursor, <strong>Ctrl+S</strong> saves and <strong>Esc</strong> cancels. When input is piped (or in Git Bash), paste instead and finish with <strong>Ctrl+Z then Enter</strong> on Windows, or <strong>Ctrl+D</strong> on macOS/Linux.</p>
   </section>
@@ -289,6 +290,7 @@ go build -o payload.exe .   <span class="c"># or: go build -o payload .</span></
     <p class="sub">Rebind any key in the table and the JSON editor. Your settings override the defaults — delete the file to go back.</p>
     <p>Edit <code>customization/settings.json</code> in the payload folder (<code>payload settings</code> prints the path). Each action takes a list of keys; any action you leave out, or the whole file if you delete it, falls back to the built-in keys. <strong>Ctrl+C</strong> always quits, and the help lines show whatever keys you choose.</p>
 <pre>{
+  "update_check": true,
   "keybinds": {
     "table": {
       "up": ["up", "k"],          "down": ["down", "j"],
@@ -334,8 +336,8 @@ go build -o payload.exe .   <span class="c"># or: go build -o payload .</span></
         <li><strong>"Windows protected your PC" (SmartScreen)</strong>, usually after downloading the <code>.exe</code> in a browser: click <strong>More info → Run anyway</strong>.</li>
         <li><strong><code>Permission denied</code> / "An Application Control policy has blocked this file" (Smart App Control)</strong>: Smart App Control has no per-app allow list, so the only way to run payload is to turn it off in <strong>Windows Security → App &amp; browser control → Smart App Control settings → Off</strong>. On some Windows 11 versions it can't be switched back on afterwards without resetting Windows.</li>
       </ul>
-      <p>It is safe to allow payload: it is open source (MIT), every release binary is built by GitHub Actions from this repository's tagged source, and it makes no network connections. Prefer to check for yourself? Build it from source (see <em>Install options</em>).</p>
-      <p><strong>Privacy policy:</strong> this program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.</p>
+      <p>It is safe to allow payload: it is open source (MIT), every release binary is built by GitHub Actions from this repository's tagged source, and its only network use is a once-a-day check for new releases on GitHub (which you can turn off) and the download when you choose to update. Prefer to check for yourself? Build it from source (see <em>Install options</em>).</p>
+      <p><strong>Privacy policy:</strong> this program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. The daily update check sends only a request for the latest release tag to GitHub and can be turned off.</p>
     </div>
   </section>
 </main>

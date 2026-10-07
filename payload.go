@@ -57,13 +57,18 @@ func main() {
 		fail("cannot create store dir: %v", err)
 	}
 	loadSettings()
+	cleanupOldBinary()
 
 	cmd := ""
 	if len(os.Args) > 1 {
 		cmd = os.Args[1]
 	}
+	notifyUpdate := startUpdateCheck(cmd)
+	defer notifyUpdate()
 
 	switch cmd {
+	case "doctor":
+		doctor(dir)
 	case "":
 		retrieve(dir)
 	case "store":
@@ -113,6 +118,7 @@ func usage() {
 		{"payload settings", "print the key-bindings settings file path"},
 		{"payload setup", "create the settings file if missing and refresh README.md"},
 		{"payload version", "print the installed version"},
+		{"payload doctor", "check the install and update to the latest release"},
 	}
 	fmt.Println(styleBadge.Render("payload") + "  " + styleMuted.Render("save & retrieve named JSON payloads"))
 	fmt.Println()

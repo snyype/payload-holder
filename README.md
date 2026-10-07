@@ -21,6 +21,7 @@ payload path     print the storage folder
 payload settings print the key-bindings settings file path
 payload setup    create the settings file if missing and refresh the AI README
 payload version  print the installed version
+payload doctor   check the install; update to the latest release if there is one
 ```
 
 In a console (cmd, PowerShell, Windows Terminal), `store` and `update` open a JSON editor: arrow keys,
@@ -72,6 +73,7 @@ action out — or deleting the whole file — falls back to the built-in keys. *
 
 ```json
 {
+  "update_check": true,
   "keybinds": {
     "table": {
       "up": ["up", "k"],
@@ -99,6 +101,26 @@ Key names: letters as typed (case matters), `space`, `enter`, `esc`, `tab`, `bac
 Help lines show your keys. A broken file or an unknown action is reported and ignored. Run
 `payload setup` to recreate a deleted file.
 
+## Updates
+
+Once a day, payload checks GitHub for a newer release (one HEAD request to the public
+`releases/latest` page; nothing about you or your payloads is sent). When there is one, every command
+ends with a line like:
+
+```
+↑ New version v1.5.0 available (you have v1.4.0) — run: payload doctor
+```
+
+Without internet it says `Version check failed (no internet connection)` once and tries again the next
+day. The notice goes to stderr and only appears on a terminal, so piped output is untouched.
+
+`payload doctor` checks the install (version, binary and PATH, storage, settings, and on Linux the
+clipboard) and, when a newer release exists, offers to update in place: it downloads the release for
+your OS, makes sure it runs, swaps it in and refreshes the AI README. Turn the daily check off with
+`"update_check": false` in `settings.json` or `PAYLOAD_NO_UPDATE_CHECK=1`.
+
+## AI assistants
+
 The installer also writes `README.md` into the payload folder: a guide for AI assistants (Claude,
 Copilot, …) on what payload can do, where payloads live, and how to use it without the interactive menus.
 
@@ -125,12 +147,13 @@ because Windows found anything harmful in it:
   versions it can't be switched back on afterwards without resetting Windows.
 
 It is safe to allow payload: it is open source (MIT), every release binary is built by GitHub Actions
-from this repository's tagged source, and it makes no network connections. If you'd rather check for
+from this repository's tagged source, and its only network use is a once-a-day check for new releases on GitHub (which you can turn off) and the download when you choose to update. If you'd rather check for
 yourself, [build it from source](#build--install-from-source-windows).
 
 **Privacy policy:** this program will not transfer any information to other networked systems unless
 specifically requested by the user or the person installing or operating it. Saved payloads stay in
-the local storage folder (`C:\payload` / `~/payload`).
+the local storage folder (`C:\payload` / `~/payload`). The daily update check sends only a request
+for the latest release tag to GitHub and can be turned off (see [Updates](#updates)).
 
 ## Build & install from source (Windows)
 

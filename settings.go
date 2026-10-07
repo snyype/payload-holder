@@ -47,9 +47,13 @@ func defaultBindings() bindings {
 // binds is the active bindings, loaded once at startup.
 var binds = defaultBindings()
 
+// updateCheck turns the daily "new version available" check on or off (settings: "update_check").
+var updateCheck = true
+
 type settingsFile struct {
-	Help     string   `json:"_help,omitempty"`
-	Keybinds bindings `json:"keybinds"`
+	Help        string   `json:"_help,omitempty"`
+	UpdateCheck *bool    `json:"update_check,omitempty"`
+	Keybinds    bindings `json:"keybinds"`
 }
 
 func settingsPath() string {
@@ -66,6 +70,9 @@ func loadSettings() {
 	if err := json.Unmarshal(data, &f); err != nil {
 		settingsWarn("Ignoring %s: %v", settingsPath(), err)
 		return
+	}
+	if f.UpdateCheck != nil {
+		updateCheck = *f.UpdateCheck
 	}
 	for section, actions := range f.Keybinds {
 		for action, ks := range actions {
@@ -89,11 +96,13 @@ func writeDefaultSettings() (created bool, err error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return false, err
 	}
+	on := true
 	data, _ := json.MarshalIndent(settingsFile{
 		Help: "Key bindings for payload. Each action takes a list of keys, e.g. \"ctrl+s\", \"enter\", \"esc\", " +
 			"\"space\", \"up\", \"pgdown\", \"x\". Remove an action (or this whole file) to use its default keys. " +
-			"Ctrl+C always quits.",
-		Keybinds: defaultBindings(),
+			"Ctrl+C always quits. update_check: false stops the daily check for new versions.",
+		UpdateCheck: &on,
+		Keybinds:    defaultBindings(),
 	}, "", "  ")
 	return true, os.WriteFile(path, append(data, '\n'), 0o644)
 }
