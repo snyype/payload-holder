@@ -11,6 +11,8 @@ file. Use it to look up, save, update, copy or delete payloads for the user.
 ├── <key>.json                 one file per saved payload (the file name is the key)
 ├── README.md                  this guide (rewritten by `payload setup`)
 ├── bin/                       the payload binary (on PATH)
+├── vault/
+│   └── env.json               env vault: {"name": "value", ...} (plain text)
 └── customization/
     └── settings.json          key-binding overrides (optional)
 ```
@@ -32,9 +34,15 @@ cannot be empty, `.` or `..`, or contain any of `/ \ : * ? " < > |`.
 | `payload update` | Replace an existing key's JSON | no — needs a menu; write the file instead |
 | `payload drop <key>...` | Delete the named keys after a y/N confirmation | yes, pipe `y` |
 | `payload table [page]` | Browse keys in a table (10 per page) | prints one page when piped |
+| `payload env <name>` | Print an env vault value (raw, no trailing newline when piped) | yes |
+| `payload env set <name> [value]` | Set a value; reads it from stdin when no value is given | yes |
+| `payload env list` | Print env value names, one per line (never values) | yes |
+| `payload env drop <name>...` | Delete env values after a y/N confirmation | yes, pipe `y` |
+| `payload env table` | Browse env values, masked (prints one masked page when piped) | prints one page when piped |
 | `payload path` | Print the storage folder | yes |
 | `payload settings` | Print the settings file path | yes |
 | `payload setup` | Create `customization/settings.json` if missing and rewrite this README | yes |
+| `payload ai` | Print this guide (markdown) | yes |
 | `payload version` | Print the version | yes |
 | `payload fix` | Reinstall the current version from its release (checksum-verified; recreates a missing settings file) | yes |
 | `payload fix --verify` | Check the installed binary against its release's SHA256SUMS; exit 1 on mismatch | yes |
@@ -62,6 +70,21 @@ echo y | payload drop create_order             # delete (confirmation answered)
 ```
 
 Saving accepts any text; it warns, but still saves, when the content is not valid JSON.
+
+## Env vault and placeholders
+
+A payload may contain `{{name}}` (spaces inside the braces allowed). `payload <key>` and `payload copy <key>`
+replace each one with the value from `vault/env.json`; the file on disk keeps the placeholder. A name that is
+not set is left as written and reported on stderr. To change a URL or token for every payload, set it once:
+
+```sh
+payload env set localUrl http://localhost:8000
+printf '%s' "$TOKEN" | payload env set token   # value from stdin, kept out of shell history
+payload env localUrl                           # -> http://localhost:8000
+```
+
+When you edit a payload file directly, keep the `{{name}}` placeholders rather than writing values in.
+Values are stored in plain text; do not print secrets back to the user unless they ask.
 
 ## Clipboard
 

@@ -37,6 +37,10 @@ func defaultBindings() bindings {
 			"confirm_delete": {"y", "Y"},
 			"quit":           {"q", "esc"},
 		},
+		"env_table": {
+			"reveal":     {"v"},
+			"reveal_all": {"V"},
+		},
 		"editor": {
 			"save":   {"ctrl+s"},
 			"cancel": {"esc"},
@@ -100,7 +104,7 @@ func writeDefaultSettings() (created bool, err error) {
 	data, _ := json.MarshalIndent(settingsFile{
 		Help: "Key bindings for payload. Each action takes a list of keys, e.g. \"ctrl+s\", \"enter\", \"esc\", " +
 			"\"space\", \"up\", \"pgdown\", \"x\". Remove an action (or this whole file) to use its default keys. " +
-			"Ctrl+C always quits. update_check: false stops the daily check for new versions.",
+			"Ctrl+C always quits. env_table only adds the show/hide keys; it moves, copies and deletes with the table keys. update_check: false stops the daily check for new versions.",
 		UpdateCheck: &on,
 		Keybinds:    defaultBindings(),
 	}, "", "  ")
@@ -133,6 +137,11 @@ func keyLabel(section, action string) string {
 	return ks[0]
 }
 
+// aiGuide is the AI README with this install's version and folder filled in.
+func aiGuide() string {
+	return strings.NewReplacer("{{VERSION}}", version, "{{ROOT}}", storeDir()).Replace(aiReadme)
+}
+
 // setup creates the settings file (if missing) and refreshes the README.md guide for AI assistants.
 func setup() {
 	dir := storeDir()
@@ -146,8 +155,7 @@ func setup() {
 		info("Kept your settings: %s", settingsPath())
 	}
 	readme := filepath.Join(dir, "README.md")
-	text := strings.NewReplacer("{{VERSION}}", version, "{{ROOT}}", dir).Replace(aiReadme)
-	if err := os.WriteFile(readme, []byte(text), 0o644); err != nil {
+	if err := os.WriteFile(readme, []byte(aiGuide()), 0o644); err != nil {
 		fail("could not write %s: %v", readme, err)
 	}
 	success("Wrote %s", readme)

@@ -138,7 +138,7 @@ func tableCmd(dir string, args []string) {
 		fail("%v", err)
 	}
 	if key := m.(tableModel).chosen; key != "" {
-		showPayload(key, readPayload(dir, key), true)
+		showPayload(key, payloadOut(dir, key), true)
 	}
 }
 
@@ -180,13 +180,18 @@ func (m tableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case pressed(k, "table", "copy"):
 		key := m.rows[m.page*perPage+m.cursor].key
 		data, err := os.ReadFile(filepath.Join(m.dir, key+".json"))
+		var missing []string
 		if err == nil {
+			data, missing = expandEnv(data)
 			err = copyText(strings.TrimSpace(string(data)))
 		}
 		if err != nil {
 			m.status = styleErr.Render("✗ could not copy " + key + ": " + err.Error())
 		} else {
 			m.status = styleOK.Render("✓ Copied " + key + " to the clipboard")
+			if len(missing) > 0 {
+				m.status += styleWarn.Render(" · not set: {{" + strings.Join(missing, "}}, {{") + "}}")
+			}
 		}
 	case pressed(k, "table", "view"):
 		m.chosen = m.rows[m.page*perPage+m.cursor].key

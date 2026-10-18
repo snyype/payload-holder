@@ -158,6 +158,19 @@
   .policy p:last-child { margin: 0; }
   .policy ul { margin: 0 0 12px; padding-left: 20px; }
 
+  .env-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .env-grid > * { min-width: 0; }
+  @media (max-width: 880px) { .env-grid { grid-template-columns: 1fr; } }
+  .env-grid pre { margin: 0; background: var(--term-bg); color: var(--term-text); border-radius: 12px; padding: 18px 20px;
+                  font-size: 13px; overflow-x: auto; line-height: 1.65; }
+  .env-grid pre .c { color: var(--term-muted); }
+  .env-grid pre .p { color: var(--term-accent); }
+  .env-grid pre .k { color: var(--term-key); }
+  .env-grid pre .r { color: #f87171; }
+  .env-grid pre .sel { background: #f87171; color: #2a0707; font-weight: 700; }
+  .env-grid h3 { margin: 0 0 8px; font-size: 15px; }
+  .env-grid p { color: var(--muted); font-size: 14.5px; margin: 10px 2px 0; }
+
   footer { border-top: 1px solid var(--border); padding: 28px 0 40px; color: var(--muted); font-size: 14px; }
   footer .wrap { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 </style>
@@ -170,6 +183,7 @@
     <div class="navlinks">
       <a href="#install">Install</a>
       <a href="#commands">Commands</a>
+      <a href="#env">Env vault</a>
       <a href="#customization">Customize</a>
       <a href="#download">Download</a>
       <a href="#windows">Windows help</a>
@@ -241,14 +255,54 @@
       <tr><td><code>payload drop [key...]</code></td><td>Delete the named keys, or pick several from a menu (<code>1 3 5-7</code> or <code>all</code>) — always asks to confirm</td></tr>
       <tr><td><code>payload list</code></td><td>Print key names only — handy for scripts (also <code>payload | grep test</code>)</td></tr>
       <tr><td><code>payload table [page]</code></td><td>Browse keys in a table, 10 per page — ←/→ to page, ↑/↓ to select, enter to view, <code>c</code> to copy, <code>d</code> to delete</td></tr>
+      <tr><td><code>payload env &lt;sub&gt;</code></td><td>Global values like <code>localUrl</code> or <code>token</code> that payloads use as <code>{{name}}</code> — <code>set</code>, <code>list</code>, <code>drop</code>, <code>table</code>, or a name to print it (<a href="#env">env vault</a>)</td></tr>
       <tr><td><code>payload path</code></td><td>Print the storage folder</td></tr>
       <tr><td><code>payload settings</code></td><td>Print the path of the key-bindings settings file</td></tr>
       <tr><td><code>payload setup</code></td><td>Create the settings file if it's missing and refresh the AI README (the installer runs this)</td></tr>
+      <tr><td><code>payload ai</code></td><td>Print the guide for AI assistants (markdown) — tell your agent to run it</td></tr>
       <tr><td><code>payload version</code></td><td>Print the installed version</td></tr>
       <tr><td><code>payload doctor</code></td><td>Check the install and, when a newer release exists, update in place</td></tr>
       <tr><td><code>payload fix [--verify]</code></td><td>Reinstall the version you're on from its release (checksum-verified); with <code>--verify</code>, only check the installed binary against the release's <code>SHA256SUMS</code></td></tr>
     </table>
     <p class="install-note">In the JSON editor, arrow keys, Home/End and PgUp/PgDn move the cursor, <strong>Ctrl+S</strong> saves and <strong>Esc</strong> cancels. When input is piped (or in Git Bash), paste instead and finish with <strong>Ctrl+Z then Enter</strong> on Windows, or <strong>Ctrl+D</strong> on macOS/Linux.</p>
+  </section>
+
+  <section id="env">
+    <h2>Env vault</h2>
+    <p class="sub">Set a URL or token once, use it in every payload as <code>{{name}}</code>. Change it in one place and every payload follows.</p>
+    <table class="cmds">
+      <tr><td><code>payload env set &lt;name&gt; [value]</code></td><td>Set or overwrite a value. Leave the value out to type or pipe it in — keeps tokens out of your shell history</td></tr>
+      <tr><td><code>payload env &lt;name&gt;</code></td><td>Print the raw value (no trailing newline when piped), e.g. <code>curl "$(payload env localUrl)/orders"</code></td></tr>
+      <tr><td><code>payload env list</code></td><td>Print the names only — never the values</td></tr>
+      <tr><td><code>payload env drop &lt;name&gt;...</code></td><td>Delete the named values after a y/N confirmation</td></tr>
+      <tr><td><code>payload env table</code></td><td>Browse values in a red table, all masked — <code>v</code> 👁 shows/hides the selected one, <code>V</code> all, <code>c</code> copies, <code>d</code> deletes</td></tr>
+    </table>
+    <div class="env-grid" style="margin-top:16px">
+      <div>
+        <h3>Use it in a payload</h3>
+<pre><span class="p">$</span> payload env set localUrl http://localhost:8000
+<span class="p">$</span> payload env set token        <span class="c"># prompts, value not echoed</span>
+
+<span class="c"># saved create_order.json</span>
+{"callback": "<span class="k">{{localUrl}}</span>/hook", "auth": "<span class="k">{{ token }}</span>"}
+
+<span class="p">$</span> payload create_order
+{"callback": "http://localhost:8000/hook", "auth": "eyJhbGci…"}</pre>
+        <p>Placeholders are filled in by <code>payload &lt;key&gt;</code>, <code>payload copy</code> and the view screen. The saved file, the editor and the table preview keep the raw <code>{{name}}</code>. A name that isn't set stays as written and prints a warning on stderr.</p>
+      </div>
+      <div>
+        <h3><code>payload env table</code></h3>
+<pre><span class="r">╭───┬──────────┬───────────────────────╮
+│</span> # <span class="r">│</span> NAME     <span class="r">│</span> VALUE                 <span class="r">│
+├───┼──────────┼───────────────────────┤
+│</span> 1 <span class="r">│</span> localUrl <span class="r">│</span> ••••••••              <span class="r">│
+│</span><span class="sel"> 2 </span><span class="r">│</span><span class="sel"> token    </span><span class="r">│</span><span class="sel"> eyJhbGciOiJIUzI1NiIs… </span><span class="r">│
+╰───┴──────────┴───────────────────────╯</span>
+<span class="c">  v 👁 show/hide · V all · c copy · d delete · q quit</span></pre>
+        <p>Every value starts masked with a fixed-length <code>••••••••</code>, so nothing leaks its length. Revealed values hide again when you close the table.</p>
+      </div>
+    </div>
+    <p class="install-note">Values are stored in plain text in <code>vault/env.json</code> inside the payload folder — readable by anyone who can read your payloads. Names follow the same rules as payload keys.</p>
   </section>
 
   <section>
@@ -268,6 +322,7 @@
 ├── &lt;key&gt;.json               <span class="c"># your saved payloads</span>
 ├── README.md                <span class="c"># guide for AI assistants</span>
 ├── bin\payload.exe          <span class="c"># the binary, on PATH</span>
+├── vault│   └── env.json             <span class="c"># env vault values (plain text)</span>
 └── customization\
     └── settings.json        <span class="c"># key-binding overrides</span></pre>
     </div>
@@ -288,8 +343,8 @@ go build -o payload.exe .   <span class="c"># or: go build -o payload .</span></
 
   <section id="customization">
     <h2>Customization</h2>
-    <p class="sub">Rebind any key in the table and the JSON editor. Your settings override the defaults — delete the file to go back.</p>
-    <p>Edit <code>customization/settings.json</code> in the payload folder (<code>payload settings</code> prints the path). Each action takes a list of keys; any action you leave out, or the whole file if you delete it, falls back to the built-in keys. <strong>Ctrl+C</strong> always quits, and the help lines show whatever keys you choose.</p>
+    <p class="sub">Rebind any key in the tables and the JSON editor. Your settings override the defaults — delete the file to go back.</p>
+    <p>Edit <code>customization/settings.json</code> in the payload folder (<code>payload settings</code> prints the path). Each action takes a list of keys (<code>env_table</code> only adds the show/hide keys — it moves, copies and deletes with the <code>table</code> keys); any action you leave out, or the whole file if you delete it, falls back to the built-in keys. <strong>Ctrl+C</strong> always quits, and the help lines show whatever keys you choose.</p>
 <pre>{
   "update_check": true,
   "keybinds": {
@@ -302,11 +357,12 @@ go build -o payload.exe .   <span class="c"># or: go build -o payload .</span></
       "delete": ["d", "delete"],  "confirm_delete": ["y", "Y"],
       "quit": ["q", "esc"]
     },
+    "env_table": { "reveal": ["v"], "reveal_all": ["V"] },
     "editor": { "save": ["ctrl+s"], "cancel": ["esc"] }
   }
 }</pre>
     <p class="install-note">Key names: letters as typed (case matters), <code>space</code>, <code>enter</code>, <code>esc</code>, <code>tab</code>, <code>delete</code>, arrows (<code>up</code>, <code>left</code>, …), <code>home</code>/<code>end</code>, <code>pgup</code>/<code>pgdown</code>, and modifiers like <code>ctrl+s</code> or <code>alt+x</code>. The installer creates the file once and never overwrites it; run <code>payload setup</code> to recreate it.</p>
-    <p>The installer also writes a <code>README.md</code> into the payload folder that explains to AI assistants what payload can do, where payloads live and how to use it without the interactive menus. Point Claude, Copilot or any agent at it.</p>
+    <p>The installer also writes a <code>README.md</code> into the payload folder that explains to AI assistants what payload can do, where payloads live and how to use it without the interactive menus. Point Claude, Copilot or any agent at it, or have it run <code>payload ai</code> to print the same guide.</p>
   </section>
 
   <section id="download">

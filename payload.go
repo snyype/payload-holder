@@ -85,12 +85,16 @@ func main() {
 		list(dir)
 	case "table":
 		tableCmd(dir, os.Args[2:])
+	case "env":
+		envCmd(os.Args[2:])
 	case "path":
 		fmt.Println(dir)
 	case "settings":
 		settingsCmd()
 	case "setup":
 		setup()
+	case "ai":
+		fmt.Print(aiGuide())
 	case "version", "--version", "-v":
 		fmt.Println(version)
 	case "-h", "--help", "help":
@@ -98,7 +102,7 @@ func main() {
 	default:
 		// Not a command: treat it as a key name and print that payload directly.
 		if validKey(cmd) && exists(dir, cmd) {
-			showPayload(cmd, readPayload(dir, cmd), false)
+			showPayload(cmd, payloadOut(dir, cmd), false)
 			return
 		}
 		fail("unknown command or key %q — run \"payload list\" to see saved keys, or \"payload help\"", cmd)
@@ -116,9 +120,15 @@ func usage() {
 		{"payload drop <key>...", "delete the named keys"},
 		{"payload list", "list saved keys (names only when piped)"},
 		{"payload table [page]", "browse keys in a table, 10 per page"},
+		{"payload env <name>", "print an env vault value (raw when piped)"},
+		{"payload env set <name> [v]", "set an env value (asks for it when not given)"},
+		{"payload env list", "list env value names"},
+		{"payload env drop <name>...", "delete env values"},
+		{"payload env table [page]", "browse env values, masked (v show/hide)"},
 		{"payload path", "print the storage folder"},
 		{"payload settings", "print the key-bindings settings file path"},
 		{"payload setup", "create the settings file if missing and refresh README.md"},
+		{"payload ai", "print the guide for AI assistants (markdown)"},
 		{"payload version", "print the installed version"},
 		{"payload doctor", "check the install and update to the latest release"},
 		{"payload fix", "reinstall the version you're on (verified download)"},
@@ -127,10 +137,11 @@ func usage() {
 	fmt.Println(styleBadge.Render("payload") + "  " + styleMuted.Render("save & retrieve named JSON payloads"))
 	fmt.Println()
 	for _, c := range cmds {
-		fmt.Printf("  %s %s\n", styleCode.Render(fmt.Sprintf("%-22s", c[0])), c[1])
+		fmt.Printf("  %s %s\n", styleCode.Render(fmt.Sprintf("%-28s", c[0])), c[1])
 	}
 	fmt.Println()
 	fmt.Println(styleMuted.Render("  Storage: one <key>.json per key in " + storeDir() + " (override with PAYLOAD_STORE)."))
+	fmt.Println(styleMuted.Render("  Env vault: " + envPath() + " (plain text) · payloads use values as {{name}}."))
 	fmt.Println(styleMuted.Render("  Key bindings: " + settingsPath() + " (delete it to use the defaults)."))
 }
 
@@ -291,7 +302,7 @@ func retrieve(dir string) {
 		return
 	}
 	key := pickKey("Which payload?", ks)
-	showPayload(key, readPayload(dir, key), true)
+	showPayload(key, payloadOut(dir, key), true)
 }
 
 func store(dir string) {
@@ -384,7 +395,7 @@ func copyCmd(dir string, names []string) {
 		fail("copy takes one key, got %d", len(names))
 	}
 
-	data := readPayload(dir, key)
+	data := payloadOut(dir, key)
 	if err := copyText(strings.TrimSpace(string(data))); err != nil {
 		fail("could not copy to clipboard: %v", err)
 	}

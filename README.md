@@ -17,9 +17,15 @@ payload drop     pick one or more keys to delete (e.g. 1 3 5-7, or all)
 payload drop <key> [<key>...]   delete the named keys
 payload list     print key names only
 payload table [page]   browse keys in a table, 10 per page (←/→ to page, enter to view, c to copy, d to delete)
+payload env <name>          print an env vault value (raw, pipe-friendly)
+payload env set <name> [value]   set a value (reads it from input when no value is given)
+payload env list            print env value names only
+payload env drop <name>...  delete env values
+payload env table           browse env values in a masked table (v show/hide, V all)
 payload path     print the storage folder
 payload settings print the key-bindings settings file path
 payload setup    create the settings file if missing and refresh the AI README
+payload ai       print the guide for AI assistants (markdown)
 payload version  print the installed version
 payload doctor   check the install; update to the latest release if there is one
 payload fix      reinstall the version you're on (verified against its SHA256SUMS)
@@ -30,6 +36,30 @@ In a console (cmd, PowerShell, Windows Terminal), `store` and `update` open a JS
 Home/End and PgUp/PgDn move the cursor, a status line shows whether the JSON is valid, **Ctrl+S** saves and
 **Esc** cancels. `update` opens with the current JSON so you can edit it in place.
 When input is piped (or in Git Bash/mintty), paste instead and finish with **Ctrl+Z then Enter** (Windows) or **Ctrl+D** (Unix).
+
+## Env vault
+
+Global values — a base URL, a token — that any payload can use as `{{name}}`:
+
+```sh
+payload env set localUrl http://localhost:8000
+payload env set token            # prompts for the value, so it stays out of shell history
+echo "$TOKEN" | payload env set token
+```
+
+```json
+{"callback": "{{localUrl}}/hook", "auth": "{{ token }}"}
+```
+
+`payload <key>`, `payload copy` and the view screen fill placeholders in with the current values; the saved
+file, the editor and the table preview keep the raw `{{name}}`, so editing never bakes a value in. A
+placeholder whose name isn't set is left as written, with a warning on stderr. Values are inserted as-is
+(the quotes come from your JSON). `payload env <name>` prints one value for scripts:
+`curl "$(payload env localUrl)/orders" -d "$(payload create_order)"`.
+
+`payload env table` shows the values in a red table with every value masked as `••••••••`; `v` shows or
+hides the selected value, `V` all of them, `c` copies the real value, `d` deletes. Values are stored in
+**plain text** in `vault/env.json` in the payload folder. Names follow the same rules as payload keys.
 
 ## Install (prebuilt binary)
 
@@ -47,6 +77,7 @@ C:\payload\                    (~/payload on macOS/Linux)
 ├── <key>.json                 your saved payloads
 ├── README.md                  guide for AI assistants: what payload can do and how to drive it
 ├── bin\payload.exe            the binary (on PATH)
+├── vault│   └── env.json               env vault values (plain text)
 └── customization\
     └── settings.json          key-binding overrides
 ```
@@ -74,7 +105,7 @@ change the install folder, `FORCE=1` to reinstall the same version.
 
 ## Customization
 
-Key bindings for the table and the JSON editor live in `customization/settings.json` inside the payload
+Key bindings for the tables and the JSON editor live in `customization/settings.json` inside the payload
 folder (`payload settings` prints the path). The installer creates it with the defaults and never
 overwrites it. Each action takes a list of keys; settings **override** the defaults, so leaving an
 action out — or deleting the whole file — falls back to the built-in keys. **Ctrl+C** always quits.
@@ -96,6 +127,10 @@ action out — or deleting the whole file — falls back to the built-in keys. *
       "confirm_delete": ["y", "Y"],
       "quit": ["q", "esc"]
     },
+    "env_table": {
+      "reveal": ["v"],
+      "reveal_all": ["V"]
+    },
     "editor": {
       "save": ["ctrl+s"],
       "cancel": ["esc"]
@@ -103,6 +138,8 @@ action out — or deleting the whole file — falls back to the built-in keys. *
   }
 }
 ```
+
+`payload env table` moves, copies and deletes with the `table` keys; `env_table` only adds the show/hide keys.
 
 Key names: letters as typed (case matters), `space`, `enter`, `esc`, `tab`, `backspace`, `delete`,
 `up`/`down`/`left`/`right`, `home`/`end`, `pgup`/`pgdown`, and modifiers such as `ctrl+s` or `alt+x`.
@@ -134,6 +171,7 @@ the AI README. If an install seems broken,
 
 The installer also writes `README.md` into the payload folder: a guide for AI assistants (Claude,
 Copilot, …) on what payload can do, where payloads live, and how to use it without the interactive menus.
+`payload ai` prints the same guide, so an agent can read it with one command.
 
 ## Releasing
 
