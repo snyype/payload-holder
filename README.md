@@ -163,7 +163,8 @@ unencrypted: use it on networks you trust and stop it (Ctrl+C) when you're done.
 ```
 
 ↑/↓ to pick, **enter** opens a text area to type or paste into, **Ctrl+S** sends it to that computer
-only (Esc cancels), then you're back at the table; **r** searches again. The first time you run it,
+only (Esc cancels), then you're back at the table. The table updates itself every 3 seconds, so people who start or
+stop listening appear and disappear while it's open; **r** searches right away. The first time you run it,
 payload asks your name — that's what others see in their table and in their listen log. It is saved as
 `"name"` in `settings.json`; change it with `payload settings set-name "snype"` (a running listener
 picks it up straight away). Without a name, the computer name is used.

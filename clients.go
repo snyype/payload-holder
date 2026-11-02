@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"net"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
@@ -182,15 +184,75 @@ type clientsModel struct {
 
 	action string // send, refresh, or "" to quit
 	target clipPeer
+	misses map[string]int // scans in a row a listed client didn't answer
 }
 
-func (m clientsModel) Init() tea.Cmd { return nil }
+// The table searches the network again every clientsRescan, so computers that start or stop
+// listening appear and disappear on their own.
+const clientsRescan = 3 * time.Second
+
+type clientsScanMsg struct{ rows []clientRow }
+
+func rescanClients() tea.Cmd {
+	return tea.Tick(clientsRescan, func(time.Time) tea.Msg {
+		rows, err := findClients()
+		if err != nil {
+			return clientsScanMsg{rows: nil}
+		}
+		return clientsScanMsg{rows: rows}
+	})
+}
+
+func (m clientsModel) Init() tea.Cmd { return rescanClients() }
+
+// merge applies a scan: new clients are added, and one that missed two scans in a row is dropped
+// (a single lost broadcast reply shouldn't make it blink out). The selection stays on the same client.
+func (m clientsModel) merge(found []clientRow) clientsModel {
+	key := func(r clientRow) string { return r.Name + "|" + r.IP }
+	var selected string
+	if len(m.rows) > 0 {
+		selected = key(m.rows[m.page*perPage+m.cursor])
+	}
+	if m.misses == nil {
+		m.misses = map[string]int{}
+	}
+	seen := map[string]bool{}
+	rows := append([]clientRow(nil), found...)
+	for _, r := range found {
+		seen[key(r)] = true
+		delete(m.misses, key(r))
+	}
+	for _, r := range m.rows {
+		if k := key(r); !seen[k] {
+			if m.misses[k]++; m.misses[k] < 2 {
+				rows = append(rows, r)
+			} else {
+				delete(m.misses, k)
+			}
+		}
+	}
+	sort.SliceStable(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name })
+	m.rows = rows
+	m.page, m.cursor = 0, 0
+	for i, r := range rows {
+		if key(r) == selected {
+			m.page, m.cursor = i/perPage, i%perPage
+		}
+	}
+	return m
+}
 
 func (m clientsModel) onPage() int {
 	return min(perPage, len(m.rows)-m.page*perPage)
 }
 
 func (m clientsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if scan, ok := msg.(clientsScanMsg); ok {
+		if m.action != "" {
+			return m, nil
+		}
+		return m.merge(scan.rows), rescanClients()
+	}
 	k, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return m, nil
@@ -249,11 +311,12 @@ func (m clientsModel) View() string {
 	l := func(action string) string { return keyLabel("table", action) }
 	if len(m.rows) == 0 {
 		return clientsHeader(m.rows, 0) + "\n" +
-			styleWarn.Render("! ") + "No one is listening. Run " + styleCode.Render("payload clipboard listen") + " on the other computers.\n" +
-			styleMuted.Render(fmt.Sprintf("  %s search again · %s quit", c("refresh"), l("quit"))) + "\n" + m.status + "\n"
+			styleWarn.Render("! ") + "No one is listening. Run " + styleCode.Render("payload clipboard listen") + " on the other computers —\n" +
+			"  they'll show up here by themselves.\n" +
+			styleMuted.Render(fmt.Sprintf("  updates every %ds · %s search now · %s quit", int(clientsRescan.Seconds()), c("refresh"), l("quit"))) + "\n" + m.status + "\n"
 	}
-	help := styleMuted.Render(fmt.Sprintf("%s/%s select · %s send text · %s search again · %s quit",
-		l("up"), l("down"), c("send"), c("refresh"), l("quit")))
+	help := styleMuted.Render(fmt.Sprintf("%s/%s select · %s send text · updates every %ds · %s search now · %s quit",
+		l("up"), l("down"), c("send"), int(clientsRescan.Seconds()), c("refresh"), l("quit")))
 	return clientsHeader(m.rows, m.page) + "\n" +
 		renderClientsPage(m.rows, m.page, m.cursor) + "\n" +
 		"  " + help + "\n" +

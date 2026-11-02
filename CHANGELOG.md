@@ -3,6 +3,11 @@
 Every release has a section here; the release build publishes it as the GitHub release notes and
 `payload doctor` shows it under "What's new" before updating. `payload changelog` prints this file.
 
+## v2.1.1 — 2026-11-02
+
+- `payload clients` now updates itself every 3 seconds: computers that start `payload clipboard listen`
+  while the table is open appear on their own, and ones that stop drop off. `r` still searches right away.
+
 ## v2.1.0 — 2026-11-02
 
 - `payload doctor` shows **What's new**: the changes in every release between yours and the latest,

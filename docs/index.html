@@ -378,7 +378,7 @@
       <tr><td><code>payload clipboard &lt;text&gt;</code></td><td>Send the text to every listener on the network</td></tr>
       <tr><td><code>payload create_order | payload clipboard</code></td><td>Send piped input — any size up to 16 MB</td></tr>
       <tr><td><code>payload clipboard</code></td><td>Nothing given: send what's on your clipboard now</td></tr>
-      <tr><td><code>payload clients</code></td><td>Send to one person: pick them in a table (↑/↓, <strong>enter</strong>), paste into the text area, <strong>Ctrl+S</strong> sends. <code>r</code> searches again</td></tr>
+      <tr><td><code>payload clients</code></td><td>Send to one person: pick them in a table (↑/↓, <strong>enter</strong>), paste into the text area, <strong>Ctrl+S</strong> sends. The list updates itself every 3 seconds; <code>r</code> searches right away</td></tr>
       <tr><td><code>payload settings set-name "snype"</code></td><td>The name others see in their table — payload asks for it the first time you run <code>payload clients</code></td></tr>
     </table>
     <pre class="term"><span class="p">$</span> payload clients
@@ -389,7 +389,7 @@
 │ 1 │ LAPTOP-K0482585       │ 192.168.1.64 │
 │ 2 │ snype (this computer) │ 192.168.1.65 │
 ╰───┴───────────────────────┴──────────────╯
-  ↑/↓ select · enter send text · r search again · q quit</pre>
+  ↑/↓ select · enter send text · updates every 3s · r search now · q quit</pre>
     <pre class="term"><span class="p">$</span> payload clipboard "http://192.168.1.65:8000"
 Looking for listeners on the network…
 <span class="p">✓</span> DESKTOP-SITA <span class="m">(192.168.1.42)</span>
