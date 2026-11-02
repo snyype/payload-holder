@@ -103,6 +103,11 @@ flags you added, the exact command, and how long curl took (or its exit code wit
 `6 couldn't resolve host`). The response goes to stdout, so `payload curl x > out.json` stays clean.
 `payload` exits with curl's exit code.
 
+**Big bodies work.** Windows can't start a program whose command line is over 32,767 characters, so
+when a request is that big (an 80 KB `--data` body, say) payload moves the long values into temporary
+curl config files passed with `-K` — curl reads them in place, so nothing changes about the request —
+and deletes them when curl finishes. The step output shows a long value shortened, with its size.
+
 `payload curl table` lists the requests with their method and URL in a blue table: **enter** runs
 the selected one, **e** edits (sets) it, **a** adds a new one, **c** copies the command with
 placeholders filled in, **d** deletes. Requests are stored in **plain text** in `vault/curl.json`.

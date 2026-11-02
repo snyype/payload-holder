@@ -339,7 +339,7 @@
 <span class="p">────────────────────────────────────────</span>
 {"score": 12, "level": "low"}
 <span class="b">●</span> <span class="p">Done</span> in 412ms</pre>
-        <p>Steps go to stderr and the response to stdout, so <code>payload curl x -s &gt; out.json</code> stays clean. A failure shows curl's exit code with the reason (<code>6 couldn't resolve host</code>, <code>60 SSL certificate problem</code>) and payload exits with the same code.</p>
+        <p>Steps go to stderr and the response to stdout, so <code>payload curl x -s &gt; out.json</code> stays clean. A failure shows curl's exit code with the reason (<code>6 couldn't resolve host</code>, <code>60 SSL certificate problem</code>) and payload exits with the same code. Bodies of any size work — past Windows' 32,767-character command-line limit, long values go to curl through temporary <code>-K</code> config files, deleted afterwards.</p>
       </div>
       <div>
         <h3>Fixed on save</h3>

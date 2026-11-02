@@ -101,7 +101,9 @@ Values are stored in plain text; do not print secrets back to the user unless th
 `vault/curl.json` maps a name to a full curl command (multi-line with `\` continuations is fine).
 `payload curl <name>` splits it like a shell, fills `{{name}}` placeholders from the env vault, appends
 any extra arguments and runs `curl`. Progress lines (`● Loaded …`, `● Filled in …`, the exact command,
-`● Done in …`) go to stderr; only curl's own output goes to stdout.
+`● Done in …`) go to stderr; only curl's own output goes to stdout. Request bodies of any size work:
+when the command line would exceed Windows' 32,767-character limit, long option values are passed to
+curl through temporary `-K` config files (deleted afterwards), and the step output shortens them.
 
 ```sh
 # save: the command from stdin (keeps quoting intact — prefer this over passing it as an argument)

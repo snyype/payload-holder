@@ -166,3 +166,94 @@ func installBundledCurl(tag string) error {
 	success("Installed %s %s", target, styleMuted.Render("("+curlVersion(target)+")"))
 	return nil
 }
+
+// --- long command lines -----------------------------------------------------------------------
+
+// maxCommandLine stays under Windows' 32,767-character limit for a whole command line (other
+// systems allow far more, but a huge argument is just as well kept out of the process list).
+const maxCommandLine = 30000
+
+// curlShortFlags maps the short options that take a value to their long names, which is how
+// they are written in a curl config file.
+var curlShortFlags = map[string]string{
+	"-d": "data", "-H": "header", "-F": "form", "-u": "user", "-b": "cookie", "-c": "cookie-jar",
+	"-A": "user-agent", "-e": "referer", "-T": "upload-file", "-w": "write-out", "-X": "request",
+	"-x": "proxy", "-o": "output", "-E": "cert", "-r": "range", "-m": "max-time", "-U": "proxy-user",
+}
+
+// fitCommandLine keeps curl's command line short enough to start: when it is too long, each
+// option whose value is long (a big --data body, a long header) moves into its own temp config
+// file, passed in its place as -K <file>. curl reads a -K file where it appears, so the options
+// keep their order and meaning. cleanup removes the files; moved describes what was moved.
+func fitCommandLine(args []string) (out, moved []string, cleanup func(), err error) {
+	var files []string
+	cleanup = func() {
+		for _, f := range files {
+			os.Remove(f)
+		}
+	}
+	if commandLineLen(args) <= maxCommandLine {
+		return args, nil, cleanup, nil
+	}
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		name, value, ok := "", "", false
+		switch {
+		case len(a) > 1024 && !strings.HasPrefix(a, "-") && strings.Contains(a, "://"):
+			name, value, ok = "url", a, true // a long positional URL
+		case i+1 < len(args) && len(args[i+1]) > 1024:
+			if long, isShort := curlShortFlags[a]; isShort {
+				name, value, ok = long, args[i+1], true
+			} else if strings.HasPrefix(a, "--") && !strings.Contains(a, "=") {
+				name, value, ok = strings.TrimPrefix(a, "--"), args[i+1], true
+			}
+			if ok {
+				i++
+			}
+		}
+		if !ok {
+			out = append(out, a)
+			continue
+		}
+		f, ferr := writeCurlConfig(name, value)
+		if ferr != nil {
+			cleanup()
+			return nil, nil, func() {}, fmt.Errorf("cannot write a temp curl config: %v", ferr)
+		}
+		files = append(files, f)
+		out = append(out, "-K", f)
+		moved = append(moved, fmt.Sprintf("--%s (%s)", name, humanSize(len(value))))
+	}
+	if commandLineLen(out) > maxCommandLine {
+		cleanup()
+		return nil, nil, func() {}, fmt.Errorf("the curl command is %d characters, too long to run, and has no long option value to move into a file", commandLineLen(out))
+	}
+	return out, moved, cleanup, nil
+}
+
+// commandLineLen estimates the quoted Windows command line length of args (plus the program).
+func commandLineLen(args []string) int {
+	n := 300 // the program path
+	for _, a := range args {
+		n += len(a) + 3 + strings.Count(a, `"`) + strings.Count(a, `\`)
+	}
+	return n
+}
+
+// writeCurlConfig writes one "name = value" line to a private temp file in curl's config syntax.
+func writeCurlConfig(name, value string) (string, error) {
+	f, err := os.CreateTemp("", "payload-curl-*.cfg")
+	if err != nil {
+		return "", err
+	}
+	quoted := strings.NewReplacer(`\`, `\`, `"`, `\"`, "\n", `\n`, "\r", `\r`, "\t", `\t`, "\v", `\v`).Replace(value)
+	_, err = fmt.Fprintf(f, "%s = \"%s\"\n", name, quoted)
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		os.Remove(f.Name())
+		return "", err
+	}
+	return f.Name(), nil
+}

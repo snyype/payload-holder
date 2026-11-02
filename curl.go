@@ -171,15 +171,29 @@ func curlRun(name string, extra []string) {
 		fail("%v", err)
 	}
 	curlStep("Running %s %s", styleMuted.Render(bin), styleMuted.Render("("+source+")"))
-	for _, line := range strings.Split(formatCurl(append([]string{"curl"}, args...)), "\n") {
+	shown := []string{"curl"}
+	for _, a := range args {
+		shown = append(shown, shortArg(a))
+	}
+	for _, line := range strings.Split(formatCurl(shown), "\n") {
 		fmt.Fprintln(os.Stderr, "  "+styleCode.Render(line))
 	}
 	if stderrTTY() {
 		fmt.Fprintln(os.Stderr, styleRule.Render(strings.Repeat("─", 40)))
 	}
 
+	args, moved, cleanup, err := fitCommandLine(args)
+	if err != nil {
+		fail("%v", err)
+	}
+	if len(moved) > 0 {
+		curlStep("Command line too long to start curl — passing %s via temp config files (-K), removed afterwards",
+			strings.Join(moved, ", "))
+	}
+
 	started := time.Now()
 	code := execCurl(bin, args)
+	cleanup()
 	took := time.Since(started).Round(time.Millisecond)
 	if stdoutTTY {
 		fmt.Println() // the response body often has no trailing newline
@@ -212,6 +226,15 @@ var curlExitReasons = map[int]string{
 	52: "empty reply from server",
 	56: "failure receiving network data",
 	60: "SSL certificate problem — -k skips the check",
+}
+
+// shortArg keeps a long argument (a big --data body) from flooding the step output: the start of
+// it on one line, then its size.
+func shortArg(a string) string {
+	if len(a) <= 300 {
+		return a
+	}
+	return previewValue(a, 120) + " (" + humanSize(len(a)) + ")"
 }
 
 func braceList(names []string) string {
