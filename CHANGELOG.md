@@ -3,6 +3,16 @@
 Every release has a section here; the release build publishes it as the GitHub release notes and
 `payload doctor` shows it under "What's new" before updating. `payload changelog` prints this file.
 
+## v2.2.0 — 2026-11-03
+
+- New `payload auth login`: log in with GitHub in your browser (local `127.0.0.1` callback, state and
+  PKCE checked). The token is stored encrypted — Windows DPAPI, or AES-256-GCM on macOS/Linux.
+  `payload auth status` and `payload auth logout` too.
+- New `payload sync push` / `payload sync pull`: keep payloads, saved curl requests and settings the same
+  on every computer through a private GitHub repo (`<you>/payload-sync`, created on the first push).
+  Pull asks first and backs up what it replaces. The env vault and your clients name are never synced.
+- `payload doctor` shows the GitHub login.
+
 ## v2.1.1 — 2026-11-02
 
 - `payload clients` now updates itself every 3 seconds: computers that start `payload clipboard listen`

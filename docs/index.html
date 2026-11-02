@@ -187,6 +187,7 @@
       <a href="#env">Env vault</a>
       <a href="#curl">Curl</a>
       <a href="#clipboard">Clipboard</a>
+      <a href="#sync">Sync</a>
       <a href="#customization">Customize</a>
       <a href="#download">Download</a>
       <a href="#windows">Windows help</a>
@@ -242,7 +243,7 @@
       <div class="card"><div class="ic">↻</div><h3>Self-updating installer</h3><p>The install script checks <code>payload version</code> and only downloads when a newer release exists.</p></div>
       <div class="card"><div class="ic">⌨</div><h3>Edit with arrow keys</h3><p>Arrow-key menus to pick keys, and a JSON editor with live validation for <code>store</code> and <code>update</code>. <code>payload copy</code> puts a payload on your clipboard.</p></div>
       <div class="card"><div class="ic">✓</div><h3>Open source</h3><p>MIT licensed, built by GitHub Actions from tagged source. Windows may warn because it is unsigned — <a href="#windows">here's why</a>.</p></div>
-      <div class="card"><div class="ic">⌂</div><h3>Stays local</h3><p>No accounts or servers. Payloads stay on your machine unless you send them yourself — with <code>payload curl</code> or the shared clipboard — and the daily release check can be turned off.</p></div>
+      <div class="card"><div class="ic">⌂</div><h3>Stays local</h3><p>No accounts or servers. Payloads stay on your machine unless you send them yourself — with <code>payload curl</code>, the shared clipboard or <code>payload sync</code> to your own private repo — and the daily release check can be turned off.</p></div>
     </div>
   </section>
 
@@ -260,6 +261,8 @@
       <tr><td><code>payload table [page]</code></td><td>Browse keys in a table, 10 per page — ←/→ to page, ↑/↓ to select, enter to view, <code>c</code> to copy, <code>d</code> to delete</td></tr>
       <tr><td><code>payload env &lt;sub&gt;</code></td><td>Global values like <code>localUrl</code> or <code>token</code> that payloads use as <code>{{name}}</code> — <code>set</code>, <code>list</code>, <code>drop</code>, <code>table</code>, or a name to print it (<a href="#env">env vault</a>)</td></tr>
       <tr><td><code>payload curl &lt;sub&gt;</code></td><td>Saved curl requests — run one by name with extra flags (<code>payload curl risk -vvk</code>), or <code>set</code>, <code>show</code>, <code>list</code>, <code>drop</code>, <code>table</code> (<a href="#curl">curl requests</a>)</td></tr>
+      <tr><td><code>payload auth login</code></td><td>Log in with GitHub in your browser; the token is stored encrypted (<a href="#sync">sync</a>)</td></tr>
+      <tr><td><code>payload sync push | pull</code></td><td>Keep payloads, curl requests and settings the same on every computer through your private GitHub repo (<a href="#sync">sync</a>)</td></tr>
       <tr><td><code>payload clients</code></td><td>Table of everyone listening — pick one, paste text, <strong>Ctrl+S</strong> sends it to just them (<a href="#clipboard">shared clipboard</a>)</td></tr>
       <tr><td><code>payload clipboard listen</code></td><td>Receive text from other computers on your network straight onto your clipboard (<a href="#clipboard">shared clipboard</a>)</td></tr>
       <tr><td><code>payload clipboard [text]</code></td><td>Send text — or piped input, or what's on your clipboard — to every computer running <code>listen</code></td></tr>
@@ -399,6 +402,26 @@ Looking for listeners on the network…
 <span class="m"># on DESKTOP-SITA</span>
 19:53:30 <span class="p">✓</span> Copied text from DESKTOP-1R2LC2N <span class="m">(192.168.1.65, 24 B)</span>  http://192.168.1.65:8000</pre>
     <p class="install-note">Listeners are found with a broadcast on your local network (UDP and TCP port <code>47321</code>), so there's nothing to configure — but Windows Firewall asks the first time <code>listen</code> runs: allow it on <strong>private</strong> networks. Anyone on the network can send to a computer while it's listening, and text travels unencrypted, so run <code>listen</code> only on networks you trust and stop it when you're done.</p>
+  </section>
+
+  <section id="sync">
+    <h2>Sync with GitHub</h2>
+    <p class="sub">Your payloads, curl requests and settings on every computer — through a private repo you own.</p>
+    <table class="cmds">
+      <tr><td><code>payload auth login</code></td><td>Opens GitHub in your browser; approve and you're back in the terminal. Asks for your profile, email and <code>repo</code> (to write to the private repo)</td></tr>
+      <tr><td><code>payload auth status</code></td><td>Who you're logged in as, and whether GitHub still accepts the token</td></tr>
+      <tr><td><code>payload auth logout</code></td><td>Delete the token from this computer</td></tr>
+      <tr><td><code>payload sync push</code></td><td>Make the repo match this computer — the first push creates the private repo <code>&lt;you&gt;/payload-sync</code>. Every push is a commit, so history is kept</td></tr>
+      <tr><td><code>payload sync pull [-y]</code></td><td>Make this computer match the repo. Shows what changes and asks first; a backup of everything replaced or deleted goes to <code>.cache/sync-backup</code></td></tr>
+      <tr><td><code>payload sync repo [owner/name]</code></td><td>Show or change the repo (it must be private)</td></tr>
+    </table>
+    <pre class="term"><span class="p">$</span> payload sync push
+  <span class="p">+</span> create_order
+  <span class="b">~</span> risk_payload
+  <span class="m">-</span> old_test
+<span class="p">✓</span> Pushed to snyype/payload-sync <span class="m">(12 payload(s), 4 curl request(s), settings)</span></pre>
+    <p class="install-note"><strong>How login works.</strong> payload starts a one-off server on <code>http://127.0.0.1:&lt;random port&gt;/callback</code>, and GitHub sends you back there after you approve — checked with a random <code>state</code> and PKCE, and never reachable from the network. The token is stored <strong>encrypted</strong>: with Windows DPAPI, so only your Windows account on that computer can read it, or on macOS/Linux with AES-256-GCM and a key kept outside the payload folder. GitHub's <code>repo</code> permission covers all your repositories, so <code>payload auth logout</code> when you no longer need it.</p>
+    <p class="install-note"><strong>Never synced:</strong> the env vault (tokens and URLs stay on each computer), the login itself, and your <code>payload clients</code> name. payload refuses to sync to a public repo.</p>
   </section>
 
   <section>

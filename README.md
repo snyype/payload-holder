@@ -33,6 +33,11 @@ payload curl install        download the bundled curl into bin\curl (Windows)
 payload clients             pick a listening computer and send it text (enter, paste, Ctrl+S)
 payload clipboard listen    receive text from the network onto your clipboard (Ctrl+C stops)
 payload clipboard [text]    send text (or piped input, or your clipboard) to every listener on the network
+payload auth login          log in with GitHub (opens the browser; token stored encrypted)
+payload auth status|logout  show the login and check it works / delete it from this computer
+payload sync push           make your private GitHub sync repo match this computer
+payload sync pull [-y]      make this computer match the sync repo (backs up first)
+payload sync repo [owner/name]   show or change the sync repo (default <you>/payload-sync)
 payload path     print the storage folder
 payload settings print the key-bindings settings file path
 payload settings set-name <name>   set the name others see in payload clients (payload settings name prints it)
@@ -169,6 +174,35 @@ payload asks your name — that's what others see in their table and in their li
 `"name"` in `settings.json`; change it with `payload settings set-name "snype"` (a running listener
 picks it up straight away). Without a name, the computer name is used.
 
+## Sync with GitHub
+
+Keep payloads, saved curl requests and settings the same on every computer through a **private**
+GitHub repo.
+
+```sh
+payload auth login     # opens GitHub in your browser; approve, and you're back in the terminal
+payload sync push      # first time: creates the private repo <you>/payload-sync and uploads
+payload sync pull      # on another computer (after payload auth login): download everything
+```
+
+- **Login.** `payload auth login` starts a one-off server on `http://127.0.0.1:<random port>/callback`,
+  opens GitHub's login page, and finishes when GitHub redirects back there (protected by a random
+  `state` and PKCE). It asks for your profile and email, and `repo` — needed to write to the private
+  repo; note that GitHub's `repo` permission covers all your repositories. The token is stored
+  **encrypted** in `vault/auth.json`: with Windows DPAPI (only your Windows account on this computer can
+  decrypt it), or on macOS/Linux with AES-256-GCM using a key kept outside the payload folder
+  (`~/.config/payload/secret.key`). `payload auth status` shows who you are and checks the token still
+  works; `payload auth logout` deletes it (and prints the GitHub page to revoke it there too).
+- **push** makes the repo match this computer: payloads go to `payloads/<key>.json`, plus `curl.json`
+  and `settings.json`. Each push is a commit, so older versions stay in the repo's history.
+- **pull** makes this computer match the repo: it lists what will be added (+), replaced (~) and deleted
+  (-), asks first (`-y` skips the question, required when not on a terminal), and copies everything it
+  replaces or deletes to `.cache/sync-backup/<time>/` before touching it.
+- **Never synced:** the env vault (`vault/env.json` — tokens stay on each computer), the login itself,
+  caches, and your `payload clients` name, which stays per computer.
+- payload refuses to sync to a public repo. `payload sync repo owner/name` picks a different (private)
+  repo; `payload sync` shows the current setup.
+
 ## Install (prebuilt binary)
 
 From Git Bash (Windows), macOS or Linux:
@@ -296,6 +330,10 @@ Copilot, …) on what payload can do, where payloads live, and how to use it wit
 `payload ai` prints the same guide, so an agent can read it with one command.
 
 ## Releasing
+
+The release build needs the GitHub OAuth App's ID and secret as repository Actions secrets
+`PAYLOAD_GITHUB_CLIENT_ID` and `PAYLOAD_GITHUB_CLIENT_SECRET` (the app's callback URL is
+`http://127.0.0.1/callback`); local builds read the same names from environment variables.
 
 Add a section for the new version at the top of [`CHANGELOG.md`](CHANGELOG.md), commit it, then push a
 version tag; the `release` workflow builds Windows/Linux/macOS binaries and attaches them to a GitHub

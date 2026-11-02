@@ -262,6 +262,15 @@ func doctor(dir string) {
 		ok("curl", fmt.Sprintf("%s (%s, %s)", p, source, curlVersion(p)))
 	}
 
+	// GitHub login (for payload sync)
+	if a, err := loadAuth(); err != nil {
+		ok("github", "not logged in (payload auth login, for payload sync)")
+	} else if _, err := a.token(); err != nil {
+		bad("github", err.Error())
+	} else {
+		ok("github", fmt.Sprintf("%s · syncs to %s", a.Login, a.syncRepo()))
+	}
+
 	// Update checks
 	if updateCheckEnabled() {
 		ok("updates", "checked daily")

@@ -89,6 +89,10 @@ func main() {
 		envCmd(os.Args[2:])
 	case "curl":
 		curlCmd(os.Args[2:])
+	case "auth":
+		authCmd(os.Args[2:])
+	case "sync":
+		syncCmd(os.Args[2:])
 	case "clients":
 		clientsCmd()
 	case "clipboard", "clip":
@@ -144,6 +148,11 @@ func usage() {
 		{"payload clients", "pick a listening computer and send it text (enter, then ctrl+s)"},
 		{"payload clipboard listen", "receive text from the network onto your clipboard (Ctrl+C stops)"},
 		{"payload clipboard [text]", "send text (or stdin, or your clipboard) to every listener on the network"},
+		{"payload auth login", "log in with GitHub (for sync); the token is stored encrypted"},
+		{"payload auth status|logout", "show the login and check it still works / delete it"},
+		{"payload sync push", "make your private GitHub sync repo match this computer"},
+		{"payload sync pull [-y]", "make this computer match the sync repo (backs up first)"},
+		{"payload sync repo [owner/name]", "show or change the sync repo (default <you>/payload-sync)"},
 		{"payload path", "print the storage folder"},
 		{"payload settings", "print the key-bindings settings file path"},
 		{"payload settings set-name <n>", "set the name others see in payload clients"},

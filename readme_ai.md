@@ -14,7 +14,8 @@ file. Use it to look up, save, update, copy or delete payloads for the user.
 │   └── curl/curl.exe          bundled curl that `payload curl` runs (Windows only; not on PATH)
 ├── vault/
 │   ├── env.json               env vault: {"name": "value", ...} (plain text)
-│   └── curl.json              saved curl requests: {"name": "curl ...", ...} (plain text)
+│   ├── curl.json              saved curl requests: {"name": "curl ...", ...} (plain text)
+│   └── auth.json              GitHub login for sync (token encrypted; never read or copy it)
 └── customization/
     └── settings.json          key-binding overrides (optional)
 ```
@@ -52,6 +53,12 @@ cannot be empty, `.` or `..`, or contain any of `/ \ : * ? " < > |`.
 | `payload clients` | Table of computers running `listen`; enter opens a text area, Ctrl+S sends to that one. Piped: prints the table | prints the table when piped |
 | `payload clipboard listen` | Receive text from other computers on the network onto this clipboard; runs until Ctrl+C | no — long-running; don't start it for the user |
 | `payload clipboard [text]` | Send text (or stdin, or the current clipboard when neither) to every `listen`er on the local network; exits 1 when none received it | yes |
+| `payload auth login` | Log in with GitHub in the browser (local 127.0.0.1 callback); stores the token encrypted | no — needs the user's browser |
+| `payload auth status` | Show the GitHub login and check the token still works; exit 1 if not | yes |
+| `payload auth logout` | Delete the stored token | yes |
+| `payload sync push` | Make the private sync repo (default `<login>/payload-sync`) match this computer | yes |
+| `payload sync pull -y` | Make this computer match the sync repo; backs up replaced/deleted files to `.cache/sync-backup/` | yes, with `-y` |
+| `payload sync` / `payload sync repo [owner/name]` | Show the sync setup / show or set the repo | yes |
 | `payload path` | Print the storage folder | yes |
 | `payload settings` | Print the settings file path | yes |
 | `payload settings name` | Print the name other computers see (settings `"name"`, else the computer name) | yes |
@@ -149,6 +156,14 @@ Shared clipboard: `payload clipboard <text>` finds listeners with a UDP broadcas
 sends over TCP on the same port, unencrypted, to every computer on the network running
 `payload clipboard listen`. It sends to other people's machines — confirm before sending anything,
 and never send secrets or tokens.
+
+## Sync
+
+`payload sync push` uploads payloads (`payloads/<key>.json`), `vault/curl.json` and
+`customization/settings.json` (without the per-computer `"name"`) to a private GitHub repo as one commit;
+`payload sync pull -y` replaces the local copies with the repo's, deleting local payloads the repo lacks.
+The env vault and the login are never synced. Pull deletes and overwrites files — confirm with the
+user before running it. Both need `payload auth login` first, which the user must do in their browser.
 
 ## Updates
 
