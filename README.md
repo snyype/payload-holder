@@ -30,6 +30,8 @@ payload curl drop <name>... delete saved curl requests
 payload curl table [page]   browse curl requests (enter run, e edit, a add, c copy, d delete)
 payload curl path           print the curl that payload curl runs (bundled, or the one on PATH)
 payload curl install        download the bundled curl into bin\curl (Windows)
+payload clipboard listen    receive text from the network onto your clipboard (Ctrl+C stops)
+payload clipboard [text]    send text (or piped input, or your clipboard) to every listener on the network
 payload path     print the storage folder
 payload settings print the key-bindings settings file path
 payload setup    create the settings file if missing and refresh the AI README
@@ -126,6 +128,24 @@ Windows build, and the installer (or `payload doctor` / `payload fix`) puts it a
 System32 or none). It lives in its own folder, which is **not** on PATH, so a plain `curl` in your
 terminal is unchanged. `payload curl path` prints the curl in use; `payload curl install` downloads it
 again. Without it — and on macOS/Linux, which always have curl — `payload curl` runs the curl on PATH.
+
+## Shared clipboard
+
+Copy on one computer, paste on another. Everyone who wants to receive runs `payload clipboard listen` and
+leaves it open; text that arrives goes straight onto their clipboard, with a line saying who sent it:
+
+```
+19:53:30 ✓ Copied text from DESKTOP-1R2LC2N (192.168.1.65, 24 B)  http://192.168.1.65:8000
+```
+
+To send, `payload clipboard <text>` goes to every listener on the network. With no text it sends piped
+input (`payload create_order | payload clipboard`, up to 16 MB), or else whatever is on your clipboard.
+Each listener is listed with ✓ or ✗ as it receives.
+
+Listeners are found with a broadcast on the local network (UDP and TCP port **47321**), so there is
+nothing to set up — but Windows Firewall asks the first time `listen` runs; allow it on **private**
+networks. While listening, anyone on the network can put text on your clipboard, and text travels
+unencrypted: use it on networks you trust and stop it (Ctrl+C) when you're done.
 
 ## Install (prebuilt binary)
 

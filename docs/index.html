@@ -186,6 +186,7 @@
       <a href="#commands">Commands</a>
       <a href="#env">Env vault</a>
       <a href="#curl">Curl</a>
+      <a href="#clipboard">Clipboard</a>
       <a href="#customization">Customize</a>
       <a href="#download">Download</a>
       <a href="#windows">Windows help</a>
@@ -241,7 +242,7 @@
       <div class="card"><div class="ic">↻</div><h3>Self-updating installer</h3><p>The install script checks <code>payload version</code> and only downloads when a newer release exists.</p></div>
       <div class="card"><div class="ic">⌨</div><h3>Edit with arrow keys</h3><p>Arrow-key menus to pick keys, and a JSON editor with live validation for <code>store</code> and <code>update</code>. <code>payload copy</code> puts a payload on your clipboard.</p></div>
       <div class="card"><div class="ic">✓</div><h3>Open source</h3><p>MIT licensed, built by GitHub Actions from tagged source. Windows may warn because it is unsigned — <a href="#windows">here's why</a>.</p></div>
-      <div class="card"><div class="ic">⌂</div><h3>Stays local</h3><p>No accounts. Payloads never leave your machine — the only network call is a daily check for new releases, which you can turn off.</p></div>
+      <div class="card"><div class="ic">⌂</div><h3>Stays local</h3><p>No accounts or servers. Payloads stay on your machine unless you send them yourself — with <code>payload curl</code> or the shared clipboard — and the daily release check can be turned off.</p></div>
     </div>
   </section>
 
@@ -259,6 +260,8 @@
       <tr><td><code>payload table [page]</code></td><td>Browse keys in a table, 10 per page — ←/→ to page, ↑/↓ to select, enter to view, <code>c</code> to copy, <code>d</code> to delete</td></tr>
       <tr><td><code>payload env &lt;sub&gt;</code></td><td>Global values like <code>localUrl</code> or <code>token</code> that payloads use as <code>{{name}}</code> — <code>set</code>, <code>list</code>, <code>drop</code>, <code>table</code>, or a name to print it (<a href="#env">env vault</a>)</td></tr>
       <tr><td><code>payload curl &lt;sub&gt;</code></td><td>Saved curl requests — run one by name with extra flags (<code>payload curl risk -vvk</code>), or <code>set</code>, <code>show</code>, <code>list</code>, <code>drop</code>, <code>table</code> (<a href="#curl">curl requests</a>)</td></tr>
+      <tr><td><code>payload clipboard listen</code></td><td>Receive text from other computers on your network straight onto your clipboard (<a href="#clipboard">shared clipboard</a>)</td></tr>
+      <tr><td><code>payload clipboard [text]</code></td><td>Send text — or piped input, or what's on your clipboard — to every computer running <code>listen</code></td></tr>
       <tr><td><code>payload path</code></td><td>Print the storage folder</td></tr>
       <tr><td><code>payload settings</code></td><td>Print the path of the key-bindings settings file</td></tr>
       <tr><td><code>payload setup</code></td><td>Create the settings file if it's missing and refresh the AI README (the installer runs this)</td></tr>
@@ -362,6 +365,26 @@
     </div>
     <p class="install-note">Saved requests are stored in plain text in <code>vault/curl.json</code> inside the payload folder.</p>
     <p class="install-note"><strong>Bundled curl on Windows.</strong> Each release ships the official <a href="https://curl.se/windows/">curl.se</a> Windows build; the installer puts it at <code>C:\payload\bin\curl\curl.exe</code>, checked against the release's <code>SHA256SUMS</code>, and <code>payload doctor</code> / <code>payload fix</code> keep it in step with payload. <code>payload curl</code> uses it first, so a request behaves the same in cmd, PowerShell and Git Bash. Its folder is not on PATH, so your terminal's own <code>curl</code> is unchanged. On macOS and Linux, <code>payload curl</code> uses the system curl.</p>
+  </section>
+
+  <section id="clipboard">
+    <h2>Shared clipboard</h2>
+    <p class="sub">Copy on one computer, paste on another — for everyone on the same network.</p>
+    <table class="cmds">
+      <tr><td><code>payload clipboard listen</code></td><td>Wait for text and put each one on your clipboard, printing who sent it. Leave it running; <strong>Ctrl+C</strong> stops</td></tr>
+      <tr><td><code>payload clipboard &lt;text&gt;</code></td><td>Send the text to every listener on the network</td></tr>
+      <tr><td><code>payload create_order | payload clipboard</code></td><td>Send piped input — any size up to 16 MB</td></tr>
+      <tr><td><code>payload clipboard</code></td><td>Nothing given: send what's on your clipboard now</td></tr>
+    </table>
+    <pre class="term"><span class="p">$</span> payload clipboard "http://192.168.1.65:8000"
+Looking for listeners on the network…
+<span class="p">✓</span> DESKTOP-SITA <span class="m">(192.168.1.42)</span>
+<span class="p">✓</span> RAM-LAPTOP <span class="m">(192.168.1.57)</span>
+<span class="p">✓</span> Sent 24 B from the arguments to 2 of 2 listener(s)
+
+<span class="m"># on DESKTOP-SITA</span>
+19:53:30 <span class="p">✓</span> Copied text from DESKTOP-1R2LC2N <span class="m">(192.168.1.65, 24 B)</span>  http://192.168.1.65:8000</pre>
+    <p class="install-note">Listeners are found with a broadcast on your local network (UDP and TCP port <code>47321</code>), so there's nothing to configure — but Windows Firewall asks the first time <code>listen</code> runs: allow it on <strong>private</strong> networks. Anyone on the network can send to a computer while it's listening, and text travels unencrypted, so run <code>listen</code> only on networks you trust and stop it when you're done.</p>
   </section>
 
   <section>

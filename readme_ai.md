@@ -49,6 +49,8 @@ cannot be empty, `.` or `..`, or contain any of `/ \ : * ? " < > |`.
 | `payload curl table [page]` | Browse requests: enter run, e edit, a add, c copy, d delete | prints one page when piped |
 | `payload curl path` | Print the curl `payload curl` runs: the bundled `bin/curl/curl.exe` if present, else the one on PATH | yes |
 | `payload curl install` | Download the bundled curl for this release, verified against SHA256SUMS (Windows only) | yes |
+| `payload clipboard listen` | Receive text from other computers on the network onto this clipboard; runs until Ctrl+C | no — long-running; don't start it for the user |
+| `payload clipboard [text]` | Send text (or stdin, or the current clipboard when neither) to every `listen`er on the local network; exits 1 when none received it | yes |
 | `payload path` | Print the storage folder | yes |
 | `payload settings` | Print the settings file path | yes |
 | `payload setup` | Create `customization/settings.json` if missing and rewrite this README | yes |
@@ -138,6 +140,11 @@ demand. It is deliberately not on PATH — to call it directly use `"$(payload c
 `wl-copy`, `xclip` or `xsel` when installed. Without those, payload keeps the text available itself in a
 small background process, as `xclip` does, until something else is copied. That needs a graphical
 session (it does not work over plain SSH).
+
+Shared clipboard: `payload clipboard <text>` finds listeners with a UDP broadcast on port 47321 and
+sends over TCP on the same port, unencrypted, to every computer on the network running
+`payload clipboard listen`. It sends to other people's machines — confirm before sending anything,
+and never send secrets or tokens.
 
 ## Updates
 
