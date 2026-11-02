@@ -30,13 +30,6 @@ const (
 	syncReadme     = "README.md"
 )
 
-func (a authFile) syncRepo() string {
-	if a.Repo != "" {
-		return a.Repo
-	}
-	return a.Login + "/payload-sync"
-}
-
 func syncCmd(args []string) {
 	sub := ""
 	if len(args) > 0 {
@@ -49,11 +42,11 @@ func syncCmd(args []string) {
 		yes := len(args) > 1 && (args[1] == "-y" || args[1] == "--yes")
 		syncPull(yes)
 	case "repo":
-		syncSetRepo(args[1:])
+		fmt.Println(mustAuth().syncRepo())
 	case "status", "":
 		syncStatus()
 	default:
-		fail("unknown sync command %q — use: payload sync push | pull [-y] | status | repo [owner/name]", sub)
+		fail("unknown sync command %q — use: payload sync push | pull [-y] | status | repo", sub)
 	}
 }
 
@@ -124,7 +117,7 @@ type syncSession struct {
 	branch string
 }
 
-func openSync(create bool) *syncSession {
+func openSync() *syncSession {
 	a := mustAuth()
 	tok, err := a.token()
 	if err != nil {
@@ -139,13 +132,10 @@ func openSync(create bool) *syncSession {
 	switch {
 	case isStatus(err, 401):
 		fail("GitHub rejected the saved login — run: payload auth login")
-	case isStatus(err, 404) && create:
-		info, err = s.createRepo()
-		if err != nil {
-			fail("could not create %s: %v", s.repo, err)
-		}
 	case isStatus(err, 404):
-		fail("%s doesn't exist yet — run payload sync push first, or choose one with: payload sync repo <owner/name>", s.repo)
+		fmt.Fprintln(os.Stderr, styleErr.Render("✗ ")+"payload can't reach "+s.repo+" — it doesn't exist, or the payload app isn't installed on it:")
+		syncRepoHelp(a)
+		os.Exit(1)
 	case err != nil:
 		fail("could not reach %s: %v", s.repo, err)
 	}
@@ -156,24 +146,11 @@ func openSync(create bool) *syncSession {
 	return s
 }
 
-func (s *syncSession) createRepo() (struct {
-	Private       bool   `json:"private"`
-	DefaultBranch string `json:"default_branch"`
-}, error) {
-	var info struct {
-		Private       bool   `json:"private"`
-		DefaultBranch string `json:"default_branch"`
-	}
-	owner, name, _ := strings.Cut(s.repo, "/")
-	if !strings.EqualFold(owner, s.auth.Login) {
-		return info, fmt.Errorf("it belongs to %s; create it on GitHub (private) first", owner)
-	}
-	fmt.Println(styleMuted.Render("Creating private repo " + s.repo + "…"))
-	err := s.gh.do("POST", "/user/repos", map[string]any{
-		"name": name, "private": true, "auto_init": true,
-		"description": "payload sync — payloads, curl requests and settings (managed by payload)",
-	}, &info)
-	return info, err
+// initRepo gives a brand-new, empty repo its first commit (the git data API needs one to build on).
+func (s *syncSession) initRepo() error {
+	return s.gh.do("PUT", "/repos/"+s.repo+"/contents/"+syncReadme, map[string]string{
+		"message": "payload sync: start", "content": base64.StdEncoding.EncodeToString([]byte(syncReadmeText)),
+	}, nil)
 }
 
 // remoteHead returns the branch's commit and its tree, or "" for both when the repo is empty.
@@ -323,12 +300,17 @@ func describePath(p string) string {
 // --- push ---------------------------------------------------------------------------------------
 
 func syncPush() {
-	s := openSync(true)
+	s := openSync()
 	local, err := localSyncFiles()
 	if err != nil {
 		fail("could not read local files: %v", err)
 	}
 	head, tree, err := s.remoteHead()
+	if err == nil && head == "" {
+		if err = s.initRepo(); err == nil {
+			head, tree, err = s.remoteHead()
+		}
+	}
 	if err != nil {
 		fail("could not read %s: %v", s.repo, err)
 	}
@@ -432,7 +414,7 @@ func printChanges(mark string, style interface{ Render(...string) string }, path
 // --- pull ---------------------------------------------------------------------------------------
 
 func syncPull(yes bool) {
-	s := openSync(false)
+	s := openSync()
 	_, tree, err := s.remoteHead()
 	if err != nil {
 		fail("could not read %s: %v", s.repo, err)
@@ -573,28 +555,6 @@ func syncStatus() {
 	fmt.Printf("  %-8s %s\n", styleMuted.Render("synced"), "payloads, vault/curl.json, customization/settings.json (not the env vault, login or your name)")
 	info("payload sync push  — make the repo match this computer")
 	info("payload sync pull  — make this computer match the repo (backs up first)")
-}
-
-func syncSetRepo(args []string) {
-	a := mustAuth()
-	if len(args) == 0 {
-		fmt.Println(a.syncRepo())
-		return
-	}
-	repo := strings.Trim(args[0], "/")
-	repo = strings.TrimPrefix(strings.TrimPrefix(repo, "https://github.com/"), "github.com/")
-	repo = strings.TrimSuffix(repo, ".git")
-	if !strings.Contains(repo, "/") {
-		repo = a.Login + "/" + repo
-	}
-	if parts := strings.Split(repo, "/"); len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		fail("use owner/name, e.g. payload sync repo %s/payload-sync", a.Login)
-	}
-	a.Repo = repo
-	if err := saveAuth(a); err != nil {
-		fail("%v", err)
-	}
-	success("Sync repo set to %s", styleTitle.Render(repo))
 }
 
 func sortedKeys[V any](m map[string]V) []string {

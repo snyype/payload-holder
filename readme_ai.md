@@ -15,7 +15,7 @@ file. Use it to look up, save, update, copy or delete payloads for the user.
 ├── vault/
 │   ├── env.json               env vault: {"name": "value", ...} (plain text)
 │   ├── curl.json              saved curl requests: {"name": "curl ...", ...} (plain text)
-│   └── auth.json              GitHub login for sync (token encrypted; never read or copy it)
+│   └── auth.json              GitHub login for sync (tokens encrypted; never read or copy it)
 └── customization/
     └── settings.json          key-binding overrides (optional)
 ```
@@ -56,9 +56,9 @@ cannot be empty, `.` or `..`, or contain any of `/ \ : * ? " < > |`.
 | `payload auth login` | Log in with GitHub in the browser (local 127.0.0.1 callback); stores the token encrypted | no — needs the user's browser |
 | `payload auth status` | Show the GitHub login and check the token still works; exit 1 if not | yes |
 | `payload auth logout` | Delete the stored token | yes |
-| `payload sync push` | Make the private sync repo (default `<login>/payload-sync`) match this computer | yes |
+| `payload sync push` | Make the private sync repo `<login>/payload-sync` (fixed name) match this computer | yes |
 | `payload sync pull -y` | Make this computer match the sync repo; backs up replaced/deleted files to `.cache/sync-backup/` | yes, with `-y` |
-| `payload sync` / `payload sync repo [owner/name]` | Show the sync setup / show or set the repo | yes |
+| `payload sync` | Show the sync setup | yes |
 | `payload path` | Print the storage folder | yes |
 | `payload settings` | Print the settings file path | yes |
 | `payload settings name` | Print the name other computers see (settings `"name"`, else the computer name) | yes |
@@ -162,6 +162,8 @@ and never send secrets or tokens.
 `payload sync push` uploads payloads (`payloads/<key>.json`), `vault/curl.json` and
 `customization/settings.json` (without the per-computer `"name"`) to a private GitHub repo as one commit;
 `payload sync pull -y` replaces the local copies with the repo's, deleting local payloads the repo lacks.
+The login is a GitHub App installed only on `<login>/payload-sync`, so payload cannot reach any other
+repository; the user creates that private repo and installs the app once.
 The env vault and the login are never synced. Pull deletes and overwrites files — confirm with the
 user before running it. Both need `payload auth login` first, which the user must do in their browser.
 

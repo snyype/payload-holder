@@ -408,19 +408,19 @@ Looking for listeners on the network…
     <h2>Sync with GitHub</h2>
     <p class="sub">Your payloads, curl requests and settings on every computer — through a private repo you own.</p>
     <table class="cmds">
-      <tr><td><code>payload auth login</code></td><td>Opens GitHub in your browser; approve and you're back in the terminal. Asks for your profile, email and <code>repo</code> (to write to the private repo)</td></tr>
-      <tr><td><code>payload auth status</code></td><td>Who you're logged in as, and whether GitHub still accepts the token</td></tr>
+      <tr><td><code>payload auth login</code></td><td>Opens GitHub in your browser; approve and you're back in the terminal. payload can only reach the one repo <code>&lt;you&gt;/payload-sync</code></td></tr>
+      <tr><td><code>payload auth status</code></td><td>Who you're logged in as, whether GitHub still accepts the token, and whether the repo is reachable</td></tr>
       <tr><td><code>payload auth logout</code></td><td>Delete the token from this computer</td></tr>
-      <tr><td><code>payload sync push</code></td><td>Make the repo match this computer — the first push creates the private repo <code>&lt;you&gt;/payload-sync</code>. Every push is a commit, so history is kept</td></tr>
+      <tr><td><code>payload sync push</code></td><td>Make <code>&lt;you&gt;/payload-sync</code> match this computer. Every push is a commit, so history is kept</td></tr>
       <tr><td><code>payload sync pull [-y]</code></td><td>Make this computer match the repo. Shows what changes and asks first; a backup of everything replaced or deleted goes to <code>.cache/sync-backup</code></td></tr>
-      <tr><td><code>payload sync repo [owner/name]</code></td><td>Show or change the repo (it must be private)</td></tr>
     </table>
+    <p><strong>One-time setup on GitHub:</strong> create a <strong>private</strong> repo named <code>payload-sync</code>, then install the <strong>payload</strong> GitHub App and pick <strong>Only select repositories → payload-sync</strong>. <code>payload auth login</code> prints both links if they're missing.</p>
     <pre class="term"><span class="p">$</span> payload sync push
   <span class="p">+</span> create_order
   <span class="b">~</span> risk_payload
   <span class="m">-</span> old_test
 <span class="p">✓</span> Pushed to snyype/payload-sync <span class="m">(12 payload(s), 4 curl request(s), settings)</span></pre>
-    <p class="install-note"><strong>How login works.</strong> payload starts a one-off server on <code>http://127.0.0.1:&lt;random port&gt;/callback</code>, and GitHub sends you back there after you approve — checked with a random <code>state</code> and PKCE, and never reachable from the network. The token is stored <strong>encrypted</strong>: with Windows DPAPI, so only your Windows account on that computer can read it, or on macOS/Linux with AES-256-GCM and a key kept outside the payload folder. GitHub's <code>repo</code> permission covers all your repositories, so <code>payload auth logout</code> when you no longer need it.</p>
+    <p class="install-note"><strong>How login works.</strong> payload starts a one-off server on <code>http://127.0.0.1:47322/callback</code>, and GitHub sends you back there after you approve — checked with a random <code>state</code> and PKCE, and never reachable from the network. The token is stored <strong>encrypted</strong>: with Windows DPAPI, so only your Windows account on that computer can read it, or on macOS/Linux with AES-256-GCM and a key kept outside the payload folder. Access is limited to one repo: payload logs in as a GitHub App that only has <em>Contents: read &amp; write</em> on the repos it's installed on, so it can't see or change anything else. The token renews itself every 8 hours.</p>
     <p class="install-note"><strong>Never synced:</strong> the env vault (tokens and URLs stay on each computer), the login itself, and your <code>payload clients</code> name. payload refuses to sync to a public repo.</p>
   </section>
 

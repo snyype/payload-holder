@@ -23,7 +23,10 @@ type fakeGitHub struct {
 	mu        sync.Mutex
 	t         *testing.T
 	repo      string
-	exists    bool
+	exists    bool // the repo exists and the app is installed on it
+	access    string
+	refresh   string
+	refreshes int
 	private   bool
 	blobs     map[string][]byte
 	trees     map[string]map[string]string // tree sha -> path -> blob sha
@@ -63,16 +66,29 @@ func (f *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	if p == "/login/oauth/access_token" {
 		_ = r.ParseForm()
-		sum := sha256.Sum256([]byte(r.Form.Get("code_verifier")))
-		if r.Form.Get("code") != "code-xyz" || r.Form.Get("client_secret") != "sec" ||
-			base64.RawURLEncoding.EncodeToString(sum[:]) != f.challenge {
-			reply(200, map[string]string{"error": "bad_verification_code"})
+		if r.Form.Get("client_id") != "cid" || r.Form.Get("client_secret") != "sec" {
+			reply(200, map[string]string{"error": "incorrect_client_credentials"})
 			return
 		}
-		reply(200, map[string]string{"access_token": "tok-123", "scope": "repo,read:user,user:email"})
+		if r.Form.Get("grant_type") == "refresh_token" {
+			if r.Form.Get("refresh_token") != f.refresh {
+				reply(200, map[string]string{"error": "bad_refresh_token"})
+				return
+			}
+			f.refreshes++
+		} else {
+			sum := sha256.Sum256([]byte(r.Form.Get("code_verifier")))
+			if r.Form.Get("code") != "code-xyz" || base64.RawURLEncoding.EncodeToString(sum[:]) != f.challenge {
+				reply(200, map[string]string{"error": "bad_verification_code"})
+				return
+			}
+		}
+		f.access, f.refresh = f.id("tok-"), f.id("ref-")
+		reply(200, map[string]any{"access_token": f.access, "expires_in": 28800,
+			"refresh_token": f.refresh, "refresh_token_expires_in": 15897600})
 		return
 	}
-	if r.Header.Get("Authorization") != "Bearer tok-123" {
+	if f.access == "" || r.Header.Get("Authorization") != "Bearer "+f.access {
 		reply(401, map[string]string{"message": "Bad credentials"})
 		return
 	}
@@ -91,20 +107,21 @@ func (f *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		reply(200, map[string]any{"private": f.private, "default_branch": "main"})
-	case p == "/user/repos" && r.Method == "POST":
-		if body["private"] != true || body["name"] != "payload-sync" {
-			f.t.Errorf("create repo %v", body)
+	case p == base+"/contents/README.md" && r.Method == "PUT":
+		if f.head != "" {
+			f.t.Errorf("initialised a repo that already has commits")
 		}
-		f.exists = true
-		readme := []byte("# init\n")
-		b := gitBlobSHA(readme)
-		f.blobs[b] = readme
+		content, _ := base64.StdEncoding.DecodeString(body["content"].(string))
+		b := gitBlobSHA(content)
+		f.blobs[b] = content
 		tr := f.id("t")
 		f.trees[tr] = map[string]string{"README.md": b}
 		c := f.id("c")
 		f.commits[c] = tr
 		f.head = c
-		reply(201, map[string]any{"private": true, "default_branch": "main"})
+		reply(201, map[string]any{})
+	case p == base+"/git/ref/heads/main" && f.head == "":
+		reply(409, map[string]string{"message": "Git Repository is empty."})
 	case p == base+"/git/ref/heads/main":
 		reply(200, map[string]any{"object": map[string]string{"sha": f.head}})
 	case strings.HasPrefix(p, base+"/git/commits/"):
@@ -205,7 +222,7 @@ func runPayload(t *testing.T, gh, store string, args ...string) (string, int) {
 	cmd := exec.Command(os.Args[0])
 	cmd.Env = append(os.Environ(), "PAYLOAD_TEST_MAIN=1", "FAKE_GH="+gh, "PAYLOAD_STORE="+store,
 		"PAYLOAD_TEST_ARGS="+strings.Join(args, " "), "PAYLOAD_NO_UPDATE_CHECK=1", "NO_COLOR=1",
-		"PAYLOAD_GITHUB_CLIENT_ID=cid", "PAYLOAD_GITHUB_CLIENT_SECRET=sec")
+		"PAYLOAD_GITHUB_CLIENT_ID=cid", "PAYLOAD_GITHUB_CLIENT_SECRET=sec", "PAYLOAD_GITHUB_APP_SLUG=payload-test")
 	out, err := cmd.CombinedOutput()
 	code := 0
 	if ee, ok := err.(*exec.ExitError); ok {
@@ -244,13 +261,35 @@ func TestLoginPushPull(t *testing.T) {
 	if code != 0 || !strings.Contains(out, "Logged in as octo") || !strings.Contains(out, "octo@example.com") || strings.Contains(out, "FORGED") {
 		t.Fatalf("login (%d):\n%s", code, out)
 	}
-	raw, _ := os.ReadFile(filepath.Join(a, "vault", "auth.json"))
-	if strings.Contains(string(raw), "tok-123") {
+	authFilePath := filepath.Join(a, "vault", "auth.json")
+	raw, _ := os.ReadFile(authFilePath)
+	if strings.Contains(string(raw), "tok-") || strings.Contains(string(raw), "ref-") {
 		t.Fatal("token stored in plain text")
 	}
+	// No repo / app not installed yet: login says how to set it up, and push refuses.
+	if !strings.Contains(out, "can't reach octo/payload-sync") || !strings.Contains(out, "/apps/payload-test/installations/new") {
+		t.Errorf("login without the repo:\n%s", out)
+	}
+	if out, code = runPayload(t, srv.URL, a, "sync", "push"); code == 0 || !strings.Contains(out, "visibility=private") {
+		t.Errorf("push without the repo (%d):\n%s", code, out)
+	}
+	f.mu.Lock()
+	f.exists = true // the user created an empty private repo and installed the app on it
+	f.mu.Unlock()
+
+	// An expired access token is renewed with the refresh token, and the new pair is saved.
+	var saved map[string]any
+	_ = json.Unmarshal(raw, &saved)
+	saved["expires"] = "2020-01-01T00:00:00Z"
+	edited, _ := json.Marshal(saved)
+	writeFile(t, authFilePath, string(edited))
 	out, code = runPayload(t, srv.URL, a, "auth", "status")
-	if code != 0 || !strings.Contains(out, "GitHub accepts the token") {
-		t.Fatalf("status (%d):\n%s", code, out)
+	if code != 0 || !strings.Contains(out, "GitHub accepts the token") || !strings.Contains(out, "can reach octo/payload-sync") || f.refreshes != 1 {
+		t.Fatalf("status with an expired token (%d, %d refreshes):\n%s", code, f.refreshes, out)
+	}
+	raw, _ = os.ReadFile(authFilePath)
+	if strings.Contains(string(raw), "2020-01-01") {
+		t.Error("renewed token was not saved")
 	}
 
 	// Computer A: two payloads, curl requests, settings with its own name, and an env vault.
@@ -263,6 +302,7 @@ func TestLoginPushPull(t *testing.T) {
 	if code != 0 || !strings.Contains(out, "Pushed to octo/payload-sync") {
 		t.Fatalf("push (%d):\n%s", code, out)
 	}
+	raw, _ = os.ReadFile(authFilePath)
 	files := f.files()
 	for _, p := range []string{"README.md", "payloads/alpha.json", "payloads/beta.json", "curl.json", "settings.json"} {
 		if _, ok := files[p]; !ok {

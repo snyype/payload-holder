@@ -3,6 +3,17 @@
 Every release has a section here; the release build publishes it as the GitHub release notes and
 `payload doctor` shows it under "What's new" before updating. `payload changelog` prints this file.
 
+## v2.3.0 — 2026-11-03
+
+- `payload sync` can now reach **only one repo**: `<you>/payload-sync`. Login is now a GitHub App
+  installed on just that repo (Contents read & write), instead of a token with access to all your
+  repositories. Create the private `payload-sync` repo and install the app once — `payload auth login`
+  prints both links.
+- The login callback is now `http://127.0.0.1:47322/callback`.
+- Tokens renew themselves (8-hour access token, refresh token stored encrypted too).
+- `payload auth status` checks the repo is reachable. `payload sync repo` no longer changes the repo.
+- Log in again after updating: `payload auth login`.
+
 ## v2.2.0 — 2026-11-03
 
 - New `payload auth login`: log in with GitHub in your browser (local `127.0.0.1` callback, state and
