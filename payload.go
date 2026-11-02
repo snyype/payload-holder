@@ -133,6 +133,8 @@ func usage() {
 		{"payload curl list", "list saved curl request names"},
 		{"payload curl drop <name>...", "delete saved curl requests"},
 		{"payload curl table [page]", "browse curl requests (enter run · e edit · a add · d delete)"},
+		{"payload curl path", "print the curl that payload curl runs (bundled or on PATH)"},
+		{"payload curl install", "download the bundled curl into bin/curl (Windows)"},
 		{"payload path", "print the storage folder"},
 		{"payload settings", "print the key-bindings settings file path"},
 		{"payload setup", "create the settings file if missing and refresh README.md"},

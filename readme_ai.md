@@ -11,6 +11,7 @@ file. Use it to look up, save, update, copy or delete payloads for the user.
 ├── <key>.json                 one file per saved payload (the file name is the key)
 ├── README.md                  this guide (rewritten by `payload setup`)
 ├── bin/                       the payload binary (on PATH)
+│   └── curl/curl.exe          bundled curl that `payload curl` runs (Windows only; not on PATH)
 ├── vault/
 │   ├── env.json               env vault: {"name": "value", ...} (plain text)
 │   └── curl.json              saved curl requests: {"name": "curl ...", ...} (plain text)
@@ -46,6 +47,8 @@ cannot be empty, `.` or `..`, or contain any of `/ \ : * ? " < > |`.
 | `payload curl list` | Print saved curl request names, one per line | yes |
 | `payload curl drop <name>...` | Delete saved curl requests after a y/N confirmation | yes, pipe `y` |
 | `payload curl table [page]` | Browse requests: enter run, e edit, a add, c copy, d delete | prints one page when piped |
+| `payload curl path` | Print the curl `payload curl` runs: the bundled `bin/curl/curl.exe` if present, else the one on PATH | yes |
+| `payload curl install` | Download the bundled curl for this release, verified against SHA256SUMS (Windows only) | yes |
 | `payload path` | Print the storage folder | yes |
 | `payload settings` | Print the settings file path | yes |
 | `payload setup` | Create `customization/settings.json` if missing and rewrite this README | yes |
@@ -120,6 +123,11 @@ On save, payload fixes a leading `$` prompt, spaces after a continuation `\`, cu
 it warns about invalid JSON bodies, headers without `:` and a missing URL. Keep tokens and base URLs as
 `{{name}}` placeholders in the env vault rather than writing them into the saved command. Running a
 request makes a real network call — confirm with the user before running one that changes data.
+
+On Windows, `payload curl` runs its own bundled curl (`bin/curl/curl.exe`, the official curl.se build
+shipped with each release), so behaviour doesn't depend on which curl the shell has. It is installed by
+the installer, `payload setup`, `payload doctor` and `payload fix`; `payload curl install` fetches it on
+demand. It is deliberately not on PATH — to call it directly use `"$(payload curl path)"`.
 
 ## Clipboard
 

@@ -3,6 +3,7 @@
 #
 # Layout (the payload folder is C:\payload on Windows, ~/payload elsewhere, or $PAYLOAD_STORE):
 #   <folder>/bin/payload                    the binary (added to PATH)
+#   <folder>/bin/curl/curl.exe              bundled curl for "payload curl" (Windows; added by "payload setup")
 #   <folder>/customization/settings.json    key-binding overrides (created once, never overwritten)
 #   <folder>/README.md                      guide for AI assistants (refreshed on every install)
 #   <folder>/<key>.json                     your saved payloads

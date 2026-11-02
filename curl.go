@@ -18,7 +18,7 @@ import (
 // {{name}} placeholders from the env vault first.
 
 // curlSubcommands can't be used as names, since "payload curl <name>" would run the subcommand.
-var curlSubcommands = map[string]bool{"set": true, "list": true, "drop": true, "table": true, "show": true}
+var curlSubcommands = map[string]bool{"set": true, "list": true, "drop": true, "table": true, "show": true, "path": true, "install": true}
 
 func curlPath() string {
 	return filepath.Join(storeDir(), "vault", "curl.json")
@@ -62,7 +62,7 @@ func saveCurls(vals map[string]string) error {
 }
 
 func curlUsage() {
-	fail("usage: payload curl <name> [curl flags...] | set <name> [command] | show <name> | list | drop <name>... | table [page]")
+	fail("usage: payload curl <name> [curl flags...] | set <name> [command] | show <name> | list | drop <name>... | table [page] | path | install")
 }
 
 func curlCmd(args []string) {
@@ -80,6 +80,10 @@ func curlCmd(args []string) {
 		curlShow(args[1])
 	case "list":
 		curlList()
+	case "path":
+		curlPathCmd()
+	case "install":
+		curlInstallCmd()
 	case "drop":
 		curlDrop(args[1:])
 	case "table":
@@ -162,11 +166,11 @@ func curlRun(name string, extra []string) {
 		curlStep("Added flags: %s", styleCode.Render(quoteWords(extra)))
 		args = append(args, extra...)
 	}
-	bin, err := exec.LookPath("curl")
+	bin, source, err := findCurl()
 	if err != nil {
-		fail("curl is not installed or not on PATH")
+		fail("%v", err)
 	}
-	curlStep("Running %s", styleMuted.Render(bin))
+	curlStep("Running %s %s", styleMuted.Render(bin), styleMuted.Render("("+source+")"))
 	for _, line := range strings.Split(formatCurl(append([]string{"curl"}, args...)), "\n") {
 		fmt.Fprintln(os.Stderr, "  "+styleCode.Render(line))
 	}

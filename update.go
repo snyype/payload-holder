@@ -253,6 +253,15 @@ func doctor(dir string) {
 		ok("settings", settingsPath())
 	}
 
+	// curl (for "payload curl")
+	if p, source, err := findCurl(); err != nil {
+		bad("curl", err.Error())
+	} else if source == "PATH" && bundledCurlPath() != "" {
+		bad("curl", fmt.Sprintf("%s (%s) — no bundled curl; run: payload curl install", p, curlVersion(p)))
+	} else {
+		ok("curl", fmt.Sprintf("%s (%s, %s)", p, source, curlVersion(p)))
+	}
+
 	// Update checks
 	if updateCheckEnabled() {
 		ok("updates", "checked daily")
@@ -356,6 +365,13 @@ func selfUpdate(exe, tag string) error {
 	} else if err := os.Rename(tmp, exe); err != nil {
 		os.Remove(tmp)
 		return err
+	}
+
+	// Bring the bundled curl to the same release; payload works without it, so only warn.
+	if bundledCurlPath() != "" {
+		if err := installBundledCurl(tag); err != nil {
+			warn("Bundled curl not updated: %v", err)
+		}
 	}
 
 	// Let the new version refresh the AI README (settings are kept).

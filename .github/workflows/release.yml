@@ -38,12 +38,31 @@ jobs:
           done
           ls -la dist
 
+      # The official curl.se Windows build, shipped as curl_windows_<arch>.exe for "payload curl"
+      # (installed to bin/curl/curl.exe). Each zip is checked against the SHA-256 curl.se publishes.
+      - name: Bundle curl for Windows
+        run: |
+          for pair in amd64:win64 arm64:win64a; do
+            arch="${pair%%:*}"; build="${pair#*:}"
+            url="$(curl -fsSI "https://curl.se/windows/latest.cgi?p=${build}-mingw.zip" | tr -d '\r' | awk 'tolower($1)=="location:" {print $2}')"
+            [ -n "$url" ] || { echo "no curl download for $build"; exit 1; }
+            curl -fsSL -o curl.zip "$url"
+            expected="$(curl -fsSL "$url.txt" | awk -F' = ' '/^SHA256/ {print $2}')"
+            actual="$(sha256sum curl.zip | awk '{print $1}')"
+            echo "$url sha256 $actual"
+            [ -n "$expected" ] && [ "$expected" = "$actual" ] || { echo "curl checksum mismatch: expected '$expected'"; exit 1; }
+            unzip -j -o curl.zip '*/bin/curl.exe' -d "curl_$arch"
+            mv "curl_$arch/curl.exe" "dist/curl_windows_${arch}.exe"
+            rm -rf curl.zip "curl_$arch"
+          done
+          ls -la dist
+
       # SHA-256 of every binary, published with the release; install.sh and "payload doctor" check
       # downloads against it.
       - name: Checksums
         run: |
           cd dist
-          sha256sum payload_* > SHA256SUMS
+          sha256sum payload_* curl_* > SHA256SUMS
           cat SHA256SUMS
 
       - uses: softprops/action-gh-release@v2

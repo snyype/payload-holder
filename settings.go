@@ -164,6 +164,16 @@ func setup() {
 		fail("could not write %s: %v", readme, err)
 	}
 	success("Wrote %s", readme)
+
+	// The installer and updates run setup with the new binary, so this is where a missing bundled
+	// curl gets added. A dev build has no release of its own to take it from.
+	if p := bundledCurlPath(); p != "" && version != "dev" {
+		if _, err := os.Stat(p); err != nil {
+			if err := installBundledCurl(version); err != nil {
+				warn("Bundled curl not installed: %v — payload curl uses the curl on PATH", err)
+			}
+		}
+	}
 }
 
 // settingsCmd prints where the settings file lives and whether it is in use.

@@ -318,6 +318,8 @@
       <tr><td><code>payload curl list</code></td><td>Print the names only</td></tr>
       <tr><td><code>payload curl drop &lt;name&gt;...</code></td><td>Delete saved requests after a y/N confirmation</td></tr>
       <tr><td><code>payload curl table</code></td><td>Browse requests with their method and URL — <code>enter</code> runs, <code>e</code> edits, <code>a</code> adds, <code>c</code> copies, <code>d</code> deletes</td></tr>
+      <tr><td><code>payload curl path</code></td><td>Print the curl that <code>payload curl</code> runs — the bundled one, or the curl on PATH</td></tr>
+      <tr><td><code>payload curl install</code></td><td>Download the bundled curl into <code>bin\curl</code> again (Windows; verified against <code>SHA256SUMS</code>)</td></tr>
     </table>
     <div class="env-grid curl-grid" style="margin-top:16px">
       <div>
@@ -327,7 +329,7 @@
 <span class="b">●</span> Parsed 10 argument(s)
 <span class="b">●</span> Filled in <span class="k">{{riskUrl}}</span>, <span class="k">{{token}}</span> from the env vault
 <span class="b">●</span> Added flags: -vvk
-<span class="b">●</span> Running C:\Windows\System32\curl.exe
+<span class="b">●</span> Running C:\payload\bin\curl\curl.exe (bundled)
   <span class="p">curl \
     --request POST \
     --url 'https://uat.example.com/api/v1/cdd/risk/score' \
@@ -354,7 +356,8 @@
         <p>It warns but still saves when a <code>--data</code> body isn't valid JSON, a header has no <code>:</code>, or there's no URL — and refuses an unclosed quote or a command that isn't curl. Put tokens in the <a href="#env">env vault</a> and write <code>{{token}}</code> in the command.</p>
       </div>
     </div>
-    <p class="install-note">Saved requests are stored in plain text in <code>vault/curl.json</code> inside the payload folder. Needs <code>curl</code> on PATH — built into Windows 10+, macOS and most Linux.</p>
+    <p class="install-note">Saved requests are stored in plain text in <code>vault/curl.json</code> inside the payload folder.</p>
+    <p class="install-note"><strong>Bundled curl on Windows.</strong> Each release ships the official <a href="https://curl.se/windows/">curl.se</a> Windows build; the installer puts it at <code>C:\payload\bin\curl\curl.exe</code>, checked against the release's <code>SHA256SUMS</code>, and <code>payload doctor</code> / <code>payload fix</code> keep it in step with payload. <code>payload curl</code> uses it first, so a request behaves the same in cmd, PowerShell and Git Bash. Its folder is not on PATH, so your terminal's own <code>curl</code> is unchanged. On macOS and Linux, <code>payload curl</code> uses the system curl.</p>
   </section>
 
   <section>
@@ -374,6 +377,7 @@
 ├── &lt;key&gt;.json               <span class="c"># your saved payloads</span>
 ├── README.md                <span class="c"># guide for AI assistants</span>
 ├── bin\payload.exe          <span class="c"># the binary, on PATH</span>
+├── bin\curl\curl.exe        <span class="c"># bundled curl for payload curl (Windows, not on PATH)</span>
 ├── vault\
 │   ├── env.json             <span class="c"># env vault values (plain text)</span>
 │   └── curl.json            <span class="c"># saved curl requests (plain text)</span>

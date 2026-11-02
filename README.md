@@ -28,6 +28,8 @@ payload curl show <name>    print a saved curl command
 payload curl list           print saved curl request names only
 payload curl drop <name>... delete saved curl requests
 payload curl table [page]   browse curl requests (enter run, e edit, a add, c copy, d delete)
+payload curl path           print the curl that payload curl runs (bundled, or the one on PATH)
+payload curl install        download the bundled curl into bin\curl (Windows)
 payload path     print the storage folder
 payload settings print the key-bindings settings file path
 payload setup    create the settings file if missing and refresh the AI README
@@ -104,7 +106,14 @@ flags you added, the exact command, and how long curl took (or its exit code wit
 `payload curl table` lists the requests with their method and URL in a blue table: **enter** runs
 the selected one, **e** edits (sets) it, **a** adds a new one, **c** copies the command with
 placeholders filled in, **d** deletes. Requests are stored in **plain text** in `vault/curl.json`.
-Needs `curl` on PATH (built into Windows 10+, macOS and most Linux).
+
+**Bundled curl (Windows).** Every release ships the official [curl.se](https://curl.se/windows/)
+Windows build, and the installer (or `payload doctor` / `payload fix`) puts it at
+`C:\payload\bin\curl\curl.exe`, checked against the release's `SHA256SUMS` like the payload binary.
+`payload curl` uses it first, so requests behave the same whatever curl your shell has (Git Bash,
+System32 or none). It lives in its own folder, which is **not** on PATH, so a plain `curl` in your
+terminal is unchanged. `payload curl path` prints the curl in use; `payload curl install` downloads it
+again. Without it — and on macOS/Linux, which always have curl — `payload curl` runs the curl on PATH.
 
 ## Install (prebuilt binary)
 
@@ -122,6 +131,7 @@ C:\payload\                    (~/payload on macOS/Linux)
 ├── <key>.json                 your saved payloads
 ├── README.md                  guide for AI assistants: what payload can do and how to drive it
 ├── bin\payload.exe            the binary (on PATH)
+├── bin\curl\curl.exe          bundled curl for payload curl (Windows; not on PATH)
 ├── vault\
 │   ├── env.json               env vault values (plain text)
 │   └── curl.json              saved curl requests (plain text)
