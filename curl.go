@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -166,6 +167,7 @@ func curlRun(name string, extra []string) {
 		curlStep("Added flags: %s", styleCode.Render(quoteWords(extra)))
 		args = append(args, extra...)
 	}
+	args, pretty := takePretty(args)
 	bin, source, err := findCurl()
 	if err != nil {
 		fail("%v", err)
@@ -192,10 +194,17 @@ func curlRun(name string, extra []string) {
 	}
 
 	started := time.Now()
-	code := execCurl(bin, args)
+	var out io.Writer = os.Stdout
+	var response bytes.Buffer
+	if pretty {
+		out = &response
+	}
+	code := execCurl(bin, args, out)
 	cleanup()
 	took := time.Since(started).Round(time.Millisecond)
-	if stdoutTTY {
+	if pretty {
+		printPretty(response.Bytes())
+	} else if stdoutTTY {
 		fmt.Println() // the response body often has no trailing newline
 	}
 	if code != 0 {
@@ -228,6 +237,61 @@ var curlExitReasons = map[int]string{
 	60: "SSL certificate problem — -k skips the check",
 }
 
+// takePretty removes payload's own --pretty flag (saved in the request or added when running it),
+// which curl doesn't know, and reports whether it was there.
+func takePretty(args []string) ([]string, bool) {
+	out := args[:0:0]
+	pretty := false
+	for _, a := range args {
+		if a == "--pretty" {
+			pretty = true
+			continue
+		}
+		out = append(out, a)
+	}
+	return out, pretty
+}
+
+// printPretty prints a captured response with its JSON body indented (and highlighted on a
+// terminal). Response headers from -i are kept as they are; a body that isn't JSON is printed as-is.
+func printPretty(resp []byte) {
+	// With -i (or redirects / 100 Continue with -L), the output starts with one or more header blocks.
+	var headers []byte
+	for bytes.HasPrefix(resp, []byte("HTTP/")) {
+		end, sep := bytes.Index(resp, []byte("\r\n\r\n")), 4
+		if end < 0 {
+			end, sep = bytes.Index(resp, []byte("\n\n")), 2
+		}
+		if end < 0 {
+			break
+		}
+		headers = append(headers, resp[:end+sep]...)
+		resp = resp[end+sep:]
+	}
+	os.Stdout.Write(headers)
+
+	body := bytes.TrimSpace(resp)
+	var indented bytes.Buffer
+	switch {
+	case len(body) == 0:
+		curlStep("No response body on stdout to format")
+		return
+	case json.Indent(&indented, body, "", "  ") != nil:
+		curlStep("The response is not JSON — printed as-is")
+		os.Stdout.Write(resp)
+		if !bytes.HasSuffix(resp, []byte("\n")) {
+			fmt.Println()
+		}
+		return
+	}
+	curlStep("Formatted the JSON response (%s)", humanSize(len(body)))
+	if stdoutTTY {
+		fmt.Println(highlightJSON(indented.String()))
+	} else {
+		fmt.Println(indented.String())
+	}
+}
+
 // shortArg keeps a long argument (a big --data body) from flooding the step output: the start of
 // it on one line, then its size.
 func shortArg(a string) string {
@@ -250,10 +314,10 @@ func quoteWords(words []string) string {
 	return strings.Join(q, " ")
 }
 
-// execCurl runs curl attached to this terminal and returns its exit status.
-func execCurl(bin string, args []string) int {
+// execCurl runs curl attached to this terminal (stdout to the given writer) and returns its exit status.
+func execCurl(bin string, args []string, stdout io.Writer) int {
 	c := exec.Command(bin, args...)
-	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+	c.Stdin, c.Stdout, c.Stderr = os.Stdin, stdout, os.Stderr
 	err := c.Run()
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) {

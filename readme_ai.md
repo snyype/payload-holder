@@ -41,7 +41,7 @@ cannot be empty, `.` or `..`, or contain any of `/ \ : * ? " < > |`.
 | `payload env list` | Print env value names, one per line (never values) | yes |
 | `payload env drop <name>...` | Delete env values after a y/N confirmation | yes, pipe `y` |
 | `payload env table` | Browse env values, masked (prints one masked page when piped) | prints one page when piped |
-| `payload curl <name> [flags...]` | Run a saved curl request; extra flags (e.g. `-vvk`, `-s`) are appended. Steps on stderr, response on stdout, exits with curl's code | yes |
+| `payload curl <name> [flags...]` | Run a saved curl request; extra flags (e.g. `-vvk`, `-s`) are appended; `--pretty` (payload's own, not passed to curl) indents a JSON response. Steps on stderr, response on stdout, exits with curl's code | yes |
 | `payload curl set <name> [command]` | Save a curl command (repairs common paste damage first); reads it from stdin when not given | yes, via stdin |
 | `payload curl show <name>` | Print a saved command as stored, `{{placeholders}}` and all | yes |
 | `payload curl list` | Print saved curl request names, one per line | yes |
@@ -117,6 +117,7 @@ EOF
 
 payload curl risk_score -s                 # run it, response body only
 payload curl risk_score -vvk               # verbose, skip TLS verification
+payload curl risk_score -s --pretty        # JSON response indented (non-JSON printed as-is)
 payload curl show risk_score               # what is saved
 ```
 

@@ -312,7 +312,7 @@
     <h2>Curl requests</h2>
     <p class="sub">Paste a curl command once, run it again by name — with any extra curl flags you like.</p>
     <table class="cmds">
-      <tr><td><code>payload curl &lt;name&gt; [flags]</code></td><td>Run a saved request. Extra flags are appended, so <code>-vvk</code>, <code>-s</code> or <code>-X PUT</code> work and win over what is saved</td></tr>
+      <tr><td><code>payload curl &lt;name&gt; [flags]</code></td><td>Run a saved request. Extra flags are appended, so <code>-vvk</code>, <code>-s</code> or <code>-X PUT</code> work and win over what is saved. Add <code>--pretty</code> to print a JSON response indented and coloured</td></tr>
       <tr><td><code>payload curl set &lt;name&gt; [cmd]</code></td><td>Save a command — leave it out to paste it into the editor (<strong>Ctrl+S</strong> saves). Multi-line <code>\</code>, PowerShell <code>`</code> and cmd <code>^</code> continuations all work</td></tr>
       <tr><td><code>payload curl show &lt;name&gt;</code></td><td>Print the saved command as stored, <code>{{placeholders}}</code> and all</td></tr>
       <tr><td><code>payload curl list</code></td><td>Print the names only</td></tr>
@@ -324,20 +324,24 @@
     <div class="env-grid curl-grid" style="margin-top:16px">
       <div>
         <h3>Every step, on screen</h3>
-<pre><span class="p">$</span> payload curl risk_score -vvk
+<pre><span class="p">$</span> payload curl risk_score -s --pretty
 <span class="b">●</span> Loaded risk_score from C:\payload\vault\curl.json
 <span class="b">●</span> Parsed 10 argument(s)
 <span class="b">●</span> Filled in <span class="k">{{riskUrl}}</span>, <span class="k">{{token}}</span> from the env vault
-<span class="b">●</span> Added flags: -vvk
+<span class="b">●</span> Added flags: -s --pretty
 <span class="b">●</span> Running C:\payload\bin\curl\curl.exe (bundled)
   <span class="p">curl \
     --request POST \
     --url 'https://uat.example.com/api/v1/cdd/risk/score' \
     --header 'Authorization: Bearer eyJ0eXAi…' \
     --data '{"categorytype": "individual"}' \
-    -vvk</span>
+    -s</span>
 <span class="p">────────────────────────────────────────</span>
-{"score": 12, "level": "low"}
+<span class="b">●</span> Formatted the JSON response (29 B)
+{
+  <span class="k">"score"</span>: 12,
+  <span class="k">"level"</span>: "low"
+}
 <span class="b">●</span> <span class="p">Done</span> in 412ms</pre>
         <p>Steps go to stderr and the response to stdout, so <code>payload curl x -s &gt; out.json</code> stays clean. A failure shows curl's exit code with the reason (<code>6 couldn't resolve host</code>, <code>60 SSL certificate problem</code>) and payload exits with the same code. Bodies of any size work — past Windows' 32,767-character command-line limit, long values go to curl through temporary <code>-K</code> config files, deleted afterwards.</p>
       </div>

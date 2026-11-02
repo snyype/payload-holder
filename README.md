@@ -22,7 +22,7 @@ payload env set <name> [value]   set a value (reads it from input when no value 
 payload env list            print env value names only
 payload env drop <name>...  delete env values
 payload env table           browse env values in a masked table (v show/hide, V all)
-payload curl <name> [flags]      run a saved curl request; extra flags (e.g. -vvk) go to curl
+payload curl <name> [flags]      run a saved curl request; extra flags (e.g. -vvk) go to curl, --pretty formats JSON
 payload curl set <name> [cmd]    save a curl command (opens an editor to paste it when not given)
 payload curl show <name>    print a saved curl command
 payload curl list           print saved curl request names only
@@ -78,6 +78,7 @@ payload curl set risk_score        # opens an editor: paste the curl command, Ct
 payload curl risk_score            # run it
 payload curl risk_score -vvk       # run it with extra curl flags (appended, so they win)
 payload curl risk_score -s > out.json
+payload curl risk_score -s --pretty      # print the JSON response indented and coloured
 ```
 
 Paste the command exactly as you copied it — multi-line with `\` continuations, PowerShell's
@@ -102,6 +103,12 @@ parse (an unclosed quote) or one that isn't curl.
 flags you added, the exact command, and how long curl took (or its exit code with the reason, such as
 `6 couldn't resolve host`). The response goes to stdout, so `payload curl x > out.json` stays clean.
 `payload` exits with curl's exit code.
+
+**`--pretty`** is payload's own flag (curl never sees it): the response's JSON body is printed indented,
+and coloured on a terminal. Headers from `-i` are kept as they are, a body that isn't JSON is printed
+unchanged, and piping still gives plain JSON (`payload curl x -s --pretty > out.json`). Save `--pretty`
+in a request to always format that one. The response is printed once curl finishes rather than as it
+streams in.
 
 **Big bodies work.** Windows can't start a program whose command line is over 32,767 characters, so
 when a request is that big (an 80 KB `--data` body, say) payload moves the long values into temporary

@@ -127,7 +127,7 @@ func usage() {
 		{"payload env list", "list env value names"},
 		{"payload env drop <name>...", "delete env values"},
 		{"payload env table [page]", "browse env values, masked (v show/hide)"},
-		{"payload curl <name> [flags]", "run a saved curl request; flags (e.g. -vvk) are passed to curl"},
+		{"payload curl <name> [flags]", "run a saved curl request; flags (e.g. -vvk) are passed to curl, --pretty formats a JSON response"},
 		{"payload curl set <name> [cmd]", "save a curl command (opens an editor to paste it when not given)"},
 		{"payload curl show <name>", "print a saved curl command"},
 		{"payload curl list", "list saved curl request names"},
