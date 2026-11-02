@@ -167,6 +167,7 @@
   .env-grid pre .p { color: var(--term-accent); }
   .env-grid pre .k { color: var(--term-key); }
   .env-grid pre .r { color: #f87171; }
+  .env-grid pre .b { color: #60a5fa; }
   .env-grid pre .sel { background: #f87171; color: #2a0707; font-weight: 700; }
   .env-grid h3 { margin: 0 0 8px; font-size: 15px; }
   .env-grid p { color: var(--muted); font-size: 14.5px; margin: 10px 2px 0; }
@@ -184,6 +185,7 @@
       <a href="#install">Install</a>
       <a href="#commands">Commands</a>
       <a href="#env">Env vault</a>
+      <a href="#curl">Curl</a>
       <a href="#customization">Customize</a>
       <a href="#download">Download</a>
       <a href="#windows">Windows help</a>
@@ -256,6 +258,7 @@
       <tr><td><code>payload list</code></td><td>Print key names only — handy for scripts (also <code>payload | grep test</code>)</td></tr>
       <tr><td><code>payload table [page]</code></td><td>Browse keys in a table, 10 per page — ←/→ to page, ↑/↓ to select, enter to view, <code>c</code> to copy, <code>d</code> to delete</td></tr>
       <tr><td><code>payload env &lt;sub&gt;</code></td><td>Global values like <code>localUrl</code> or <code>token</code> that payloads use as <code>{{name}}</code> — <code>set</code>, <code>list</code>, <code>drop</code>, <code>table</code>, or a name to print it (<a href="#env">env vault</a>)</td></tr>
+      <tr><td><code>payload curl &lt;sub&gt;</code></td><td>Saved curl requests — run one by name with extra flags (<code>payload curl risk -vvk</code>), or <code>set</code>, <code>show</code>, <code>list</code>, <code>drop</code>, <code>table</code> (<a href="#curl">curl requests</a>)</td></tr>
       <tr><td><code>payload path</code></td><td>Print the storage folder</td></tr>
       <tr><td><code>payload settings</code></td><td>Print the path of the key-bindings settings file</td></tr>
       <tr><td><code>payload setup</code></td><td>Create the settings file if it's missing and refresh the AI README (the installer runs this)</td></tr>
@@ -305,6 +308,55 @@
     <p class="install-note">Values are stored in plain text in <code>vault/env.json</code> inside the payload folder — readable by anyone who can read your payloads. Names follow the same rules as payload keys.</p>
   </section>
 
+  <section id="curl">
+    <h2>Curl requests</h2>
+    <p class="sub">Paste a curl command once, run it again by name — with any extra curl flags you like.</p>
+    <table class="cmds">
+      <tr><td><code>payload curl &lt;name&gt; [flags]</code></td><td>Run a saved request. Extra flags are appended, so <code>-vvk</code>, <code>-s</code> or <code>-X PUT</code> work and win over what is saved</td></tr>
+      <tr><td><code>payload curl set &lt;name&gt; [cmd]</code></td><td>Save a command — leave it out to paste it into the editor (<strong>Ctrl+S</strong> saves). Multi-line <code>\</code>, PowerShell <code>`</code> and cmd <code>^</code> continuations all work</td></tr>
+      <tr><td><code>payload curl show &lt;name&gt;</code></td><td>Print the saved command as stored, <code>{{placeholders}}</code> and all</td></tr>
+      <tr><td><code>payload curl list</code></td><td>Print the names only</td></tr>
+      <tr><td><code>payload curl drop &lt;name&gt;...</code></td><td>Delete saved requests after a y/N confirmation</td></tr>
+      <tr><td><code>payload curl table</code></td><td>Browse requests with their method and URL — <code>enter</code> runs, <code>e</code> edits, <code>a</code> adds, <code>c</code> copies, <code>d</code> deletes</td></tr>
+    </table>
+    <div class="env-grid curl-grid" style="margin-top:16px">
+      <div>
+        <h3>Every step, on screen</h3>
+<pre><span class="p">$</span> payload curl risk_score -vvk
+<span class="b">●</span> Loaded risk_score from C:\payload\vault\curl.json
+<span class="b">●</span> Parsed 10 argument(s)
+<span class="b">●</span> Filled in <span class="k">{{riskUrl}}</span>, <span class="k">{{token}}</span> from the env vault
+<span class="b">●</span> Added flags: -vvk
+<span class="b">●</span> Running C:\Windows\System32\curl.exe
+  <span class="p">curl \
+    --request POST \
+    --url 'https://uat.example.com/api/v1/cdd/risk/score' \
+    --header 'Authorization: Bearer eyJ0eXAi…' \
+    --data '{"categorytype": "individual"}' \
+    -vvk</span>
+<span class="p">────────────────────────────────────────</span>
+{"score": 12, "level": "low"}
+<span class="b">●</span> <span class="p">Done</span> in 412ms</pre>
+        <p>Steps go to stderr and the response to stdout, so <code>payload curl x -s &gt; out.json</code> stays clean. A failure shows curl's exit code with the reason (<code>6 couldn't resolve host</code>, <code>60 SSL certificate problem</code>) and payload exits with the same code.</p>
+      </div>
+      <div>
+        <h3>Fixed on save</h3>
+<pre><span class="p">$</span> payload curl set risk_score
+<span class="c"># pasted: $ curl -X post \␠␠
+#   -H “Content-Type: application/json” \
+#   -d '{"a": [1, 2,],}' https://…</span>
+<span class="b">●</span> Fixed: removed the leading shell prompt $
+<span class="b">●</span> Fixed: removed spaces after a line-continuation \
+<span class="b">●</span> Fixed: replaced curly quotes with straight quotes
+<span class="b">●</span> Fixed: upper-cased the method post → POST
+<span class="b">●</span> Fixed: removed trailing commas from the -d JSON
+<span class="p">✓</span> Saved risk_score</pre>
+        <p>It warns but still saves when a <code>--data</code> body isn't valid JSON, a header has no <code>:</code>, or there's no URL — and refuses an unclosed quote or a command that isn't curl. Put tokens in the <a href="#env">env vault</a> and write <code>{{token}}</code> in the command.</p>
+      </div>
+    </div>
+    <p class="install-note">Saved requests are stored in plain text in <code>vault/curl.json</code> inside the payload folder. Needs <code>curl</code> on PATH — built into Windows 10+, macOS and most Linux.</p>
+  </section>
+
   <section>
     <h2>Install options</h2>
     <p class="sub">The one-liner covers most people. Here's the rest.</p>
@@ -322,7 +374,9 @@
 ├── &lt;key&gt;.json               <span class="c"># your saved payloads</span>
 ├── README.md                <span class="c"># guide for AI assistants</span>
 ├── bin\payload.exe          <span class="c"># the binary, on PATH</span>
-├── vault│   └── env.json             <span class="c"># env vault values (plain text)</span>
+├── vault\
+│   ├── env.json             <span class="c"># env vault values (plain text)</span>
+│   └── curl.json            <span class="c"># saved curl requests (plain text)</span>
 └── customization\
     └── settings.json        <span class="c"># key-binding overrides</span></pre>
     </div>
@@ -344,7 +398,7 @@ go build -o payload.exe .   <span class="c"># or: go build -o payload .</span></
   <section id="customization">
     <h2>Customization</h2>
     <p class="sub">Rebind any key in the tables and the JSON editor. Your settings override the defaults — delete the file to go back.</p>
-    <p>Edit <code>customization/settings.json</code> in the payload folder (<code>payload settings</code> prints the path). Each action takes a list of keys (<code>env_table</code> only adds the show/hide keys — it moves, copies and deletes with the <code>table</code> keys); any action you leave out, or the whole file if you delete it, falls back to the built-in keys. <strong>Ctrl+C</strong> always quits, and the help lines show whatever keys you choose.</p>
+    <p>Edit <code>customization/settings.json</code> in the payload folder (<code>payload settings</code> prints the path). Each action takes a list of keys (<code>env_table</code> and <code>curl_table</code> only add their own keys — show/hide, run/edit/add — and move, copy and delete with the <code>table</code> keys); any action you leave out, or the whole file if you delete it, falls back to the built-in keys. <strong>Ctrl+C</strong> always quits, and the help lines show whatever keys you choose.</p>
 <pre>{
   "update_check": true,
   "keybinds": {
@@ -358,6 +412,7 @@ go build -o payload.exe .   <span class="c"># or: go build -o payload .</span></
       "quit": ["q", "esc"]
     },
     "env_table": { "reveal": ["v"], "reveal_all": ["V"] },
+    "curl_table": { "run": ["enter"], "edit": ["e"], "add": ["a"] },
     "editor": { "save": ["ctrl+s"], "cancel": ["esc"] }
   }
 }</pre>

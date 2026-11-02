@@ -87,6 +87,8 @@ func main() {
 		tableCmd(dir, os.Args[2:])
 	case "env":
 		envCmd(os.Args[2:])
+	case "curl":
+		curlCmd(os.Args[2:])
 	case "path":
 		fmt.Println(dir)
 	case "settings":
@@ -125,6 +127,12 @@ func usage() {
 		{"payload env list", "list env value names"},
 		{"payload env drop <name>...", "delete env values"},
 		{"payload env table [page]", "browse env values, masked (v show/hide)"},
+		{"payload curl <name> [flags]", "run a saved curl request; flags (e.g. -vvk) are passed to curl"},
+		{"payload curl set <name> [cmd]", "save a curl command (opens an editor to paste it when not given)"},
+		{"payload curl show <name>", "print a saved curl command"},
+		{"payload curl list", "list saved curl request names"},
+		{"payload curl drop <name>...", "delete saved curl requests"},
+		{"payload curl table [page]", "browse curl requests (enter run · e edit · a add · d delete)"},
 		{"payload path", "print the storage folder"},
 		{"payload settings", "print the key-bindings settings file path"},
 		{"payload setup", "create the settings file if missing and refresh README.md"},
@@ -137,11 +145,12 @@ func usage() {
 	fmt.Println(styleBadge.Render("payload") + "  " + styleMuted.Render("save & retrieve named JSON payloads"))
 	fmt.Println()
 	for _, c := range cmds {
-		fmt.Printf("  %s %s\n", styleCode.Render(fmt.Sprintf("%-28s", c[0])), c[1])
+		fmt.Printf("  %s %s\n", styleCode.Render(fmt.Sprintf("%-30s", c[0])), c[1])
 	}
 	fmt.Println()
 	fmt.Println(styleMuted.Render("  Storage: one <key>.json per key in " + storeDir() + " (override with PAYLOAD_STORE)."))
 	fmt.Println(styleMuted.Render("  Env vault: " + envPath() + " (plain text) · payloads use values as {{name}}."))
+	fmt.Println(styleMuted.Render("  Curl requests: " + curlPath() + " (plain text) · {{name}} works there too."))
 	fmt.Println(styleMuted.Render("  Key bindings: " + settingsPath() + " (delete it to use the defaults)."))
 }
 

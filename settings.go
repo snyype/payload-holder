@@ -41,6 +41,11 @@ func defaultBindings() bindings {
 			"reveal":     {"v"},
 			"reveal_all": {"V"},
 		},
+		"curl_table": {
+			"run":  {"enter"},
+			"edit": {"e"},
+			"add":  {"a"},
+		},
 		"editor": {
 			"save":   {"ctrl+s"},
 			"cancel": {"esc"},
@@ -104,7 +109,7 @@ func writeDefaultSettings() (created bool, err error) {
 	data, _ := json.MarshalIndent(settingsFile{
 		Help: "Key bindings for payload. Each action takes a list of keys, e.g. \"ctrl+s\", \"enter\", \"esc\", " +
 			"\"space\", \"up\", \"pgdown\", \"x\". Remove an action (or this whole file) to use its default keys. " +
-			"Ctrl+C always quits. env_table only adds the show/hide keys; it moves, copies and deletes with the table keys. update_check: false stops the daily check for new versions.",
+			"Ctrl+C always quits. env_table and curl_table only add their own keys (show/hide; run/edit/add); they move, copy and delete with the table keys. update_check: false stops the daily check for new versions.",
 		UpdateCheck: &on,
 		Keybinds:    defaultBindings(),
 	}, "", "  ")

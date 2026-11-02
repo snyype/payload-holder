@@ -12,7 +12,8 @@ file. Use it to look up, save, update, copy or delete payloads for the user.
 ├── README.md                  this guide (rewritten by `payload setup`)
 ├── bin/                       the payload binary (on PATH)
 ├── vault/
-│   └── env.json               env vault: {"name": "value", ...} (plain text)
+│   ├── env.json               env vault: {"name": "value", ...} (plain text)
+│   └── curl.json              saved curl requests: {"name": "curl ...", ...} (plain text)
 └── customization/
     └── settings.json          key-binding overrides (optional)
 ```
@@ -39,6 +40,12 @@ cannot be empty, `.` or `..`, or contain any of `/ \ : * ? " < > |`.
 | `payload env list` | Print env value names, one per line (never values) | yes |
 | `payload env drop <name>...` | Delete env values after a y/N confirmation | yes, pipe `y` |
 | `payload env table` | Browse env values, masked (prints one masked page when piped) | prints one page when piped |
+| `payload curl <name> [flags...]` | Run a saved curl request; extra flags (e.g. `-vvk`, `-s`) are appended. Steps on stderr, response on stdout, exits with curl's code | yes |
+| `payload curl set <name> [command]` | Save a curl command (repairs common paste damage first); reads it from stdin when not given | yes, via stdin |
+| `payload curl show <name>` | Print a saved command as stored, `{{placeholders}}` and all | yes |
+| `payload curl list` | Print saved curl request names, one per line | yes |
+| `payload curl drop <name>...` | Delete saved curl requests after a y/N confirmation | yes, pipe `y` |
+| `payload curl table [page]` | Browse requests: enter run, e edit, a add, c copy, d delete | prints one page when piped |
 | `payload path` | Print the storage folder | yes |
 | `payload settings` | Print the settings file path | yes |
 | `payload setup` | Create `customization/settings.json` if missing and rewrite this README | yes |
@@ -86,6 +93,34 @@ payload env localUrl                           # -> http://localhost:8000
 When you edit a payload file directly, keep the `{{name}}` placeholders rather than writing values in.
 Values are stored in plain text; do not print secrets back to the user unless they ask.
 
+## Saved curl requests
+
+`vault/curl.json` maps a name to a full curl command (multi-line with `\` continuations is fine).
+`payload curl <name>` splits it like a shell, fills `{{name}}` placeholders from the env vault, appends
+any extra arguments and runs `curl`. Progress lines (`● Loaded …`, `● Filled in …`, the exact command,
+`● Done in …`) go to stderr; only curl's own output goes to stdout.
+
+```sh
+# save: the command from stdin (keeps quoting intact — prefer this over passing it as an argument)
+cat <<'EOF' | payload curl set risk_score
+curl --request POST \
+  --url '{{riskUrl}}/api/v1/cdd/risk/score?cddtype=individual' \
+  --header 'Authorization: Bearer {{token}}' \
+  --header 'Content-Type: application/json' \
+  --data '{"categorytype": "individual"}'
+EOF
+
+payload curl risk_score -s                 # run it, response body only
+payload curl risk_score -vvk               # verbose, skip TLS verification
+payload curl show risk_score               # what is saved
+```
+
+On save, payload fixes a leading `$` prompt, spaces after a continuation `\`, curly quotes, a missing
+`curl`, a lower-case method and trailing commas in a JSON `--data` body, printing `● Fixed: …` for each;
+it warns about invalid JSON bodies, headers without `:` and a missing URL. Keep tokens and base URLs as
+`{{name}}` placeholders in the env vault rather than writing them into the saved command. Running a
+request makes a real network call — confirm with the user before running one that changes data.
+
 ## Clipboard
 
 `payload copy <key>` uses the OS clipboard: Win32 on Windows, `pbcopy` on macOS, and on Linux
@@ -124,6 +159,15 @@ below. Ctrl+C always quits.
       "delete": ["d", "delete"],
       "confirm_delete": ["y", "Y"],
       "quit": ["q", "esc"]
+    },
+    "env_table": {
+      "reveal": ["v"],
+      "reveal_all": ["V"]
+    },
+    "curl_table": {
+      "run": ["enter"],
+      "edit": ["e"],
+      "add": ["a"]
     },
     "editor": {
       "save": ["ctrl+s"],

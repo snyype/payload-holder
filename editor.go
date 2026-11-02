@@ -14,6 +14,17 @@ import (
 // editJSONTUI opens a multi-line editor (arrow keys, home/end, paste) prefilled with initial.
 // It returns the edited text, or exits quietly when the user cancels.
 func editJSONTUI(key, initial string) string {
+	text, ok := editTextTUI(key, styleBadge, initial, "Paste or type JSON here", jsonStatus)
+	if !ok {
+		fmt.Println(styleMuted.Render("Cancelled."))
+		os.Exit(130)
+	}
+	return text
+}
+
+// editTextTUI is the full-screen editor behind editJSONTUI; status renders the line under the text
+// (e.g. whether it parses). It reports false when the user cancels.
+func editTextTUI(title string, badge lipgloss.Style, initial, placeholder string, status func(string) string) (string, bool) {
 	ta := textarea.New()
 	ta.ShowLineNumbers = true
 	ta.Prompt = ""
@@ -23,26 +34,24 @@ func editJSONTUI(key, initial string) string {
 	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
 	ta.FocusedStyle.LineNumber = styleMuted
 	ta.FocusedStyle.CursorLineNumber = styleAccent
-	ta.Placeholder = "Paste or type JSON here"
+	ta.Placeholder = placeholder
 	ta.SetValue(initial)
 	ta.Focus()
 
-	m, err := tea.NewProgram(editorModel{key: key, ta: ta}, tea.WithAltScreen()).Run()
+	m, err := tea.NewProgram(editorModel{title: title, badge: badge, status: status, ta: ta}, tea.WithAltScreen()).Run()
 	if err != nil {
 		fail("%v", err)
 	}
 	em := m.(editorModel)
-	if !em.saved {
-		fmt.Println(styleMuted.Render("Cancelled."))
-		os.Exit(130)
-	}
-	return em.ta.Value()
+	return em.ta.Value(), em.saved
 }
 
 type editorModel struct {
-	key   string
-	ta    textarea.Model
-	saved bool
+	title  string
+	badge  lipgloss.Style
+	status func(string) string
+	ta     textarea.Model
+	saved  bool
 }
 
 func (m editorModel) Init() tea.Cmd { return textarea.Blink }
@@ -73,20 +82,21 @@ func (m editorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m editorModel) View() string {
-	header := styleBadge.Render(m.key) + "  " + styleMuted.Render(
+	header := m.badge.Render(m.title) + "  " + styleMuted.Render(
 		fmt.Sprintf("line %d of %d", m.ta.Line()+1, m.ta.LineCount()))
-
-	val := strings.TrimSpace(m.ta.Value())
 	status := styleMuted.Render("empty")
-	if val != "" {
-		var v any
-		if err := json.Unmarshal([]byte(val), &v); err != nil {
-			status = styleWarn.Render("✗ " + err.Error())
-		} else {
-			status = styleOK.Render("✓ valid JSON")
-		}
+	if val := strings.TrimSpace(m.ta.Value()); val != "" {
+		status = m.status(val)
 	}
 	help := styleMuted.Render(keyLabel("editor", "save") + " save · " + keyLabel("editor", "cancel") +
 		" cancel · arrows/home/end/pgup/pgdn move")
 	return header + "\n" + m.ta.View() + "\n" + status + "   " + help
+}
+
+func jsonStatus(val string) string {
+	var v any
+	if err := json.Unmarshal([]byte(val), &v); err != nil {
+		return styleWarn.Render("✗ " + err.Error())
+	}
+	return styleOK.Render("✓ valid JSON")
 }

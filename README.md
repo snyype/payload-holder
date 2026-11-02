@@ -22,6 +22,12 @@ payload env set <name> [value]   set a value (reads it from input when no value 
 payload env list            print env value names only
 payload env drop <name>...  delete env values
 payload env table           browse env values in a masked table (v show/hide, V all)
+payload curl <name> [flags]      run a saved curl request; extra flags (e.g. -vvk) go to curl
+payload curl set <name> [cmd]    save a curl command (opens an editor to paste it when not given)
+payload curl show <name>    print a saved curl command
+payload curl list           print saved curl request names only
+payload curl drop <name>... delete saved curl requests
+payload curl table [page]   browse curl requests (enter run, e edit, a add, c copy, d delete)
 payload path     print the storage folder
 payload settings print the key-bindings settings file path
 payload setup    create the settings file if missing and refresh the AI README
@@ -61,6 +67,45 @@ placeholder whose name isn't set is left as written, with a warning on stderr. V
 hides the selected value, `V` all of them, `c` copies the real value, `d` deletes. Values are stored in
 **plain text** in `vault/env.json` in the payload folder. Names follow the same rules as payload keys.
 
+## Curl requests
+
+Save whole curl commands under a name and run them again with one word:
+
+```sh
+payload curl set risk_score        # opens an editor: paste the curl command, Ctrl+S to save
+payload curl risk_score            # run it
+payload curl risk_score -vvk       # run it with extra curl flags (appended, so they win)
+payload curl risk_score -s > out.json
+```
+
+Paste the command exactly as you copied it — multi-line with `\` continuations, PowerShell's
+`` ` `` continuations, or a browser's "Copy as cURL (cmd)" with `^` all work. `{{name}}` placeholders
+are filled in from the env vault when the request runs, so put tokens there:
+
+```sh
+curl --request POST \
+  --url '{{riskUrl}}/api/v1/cdd/risk/score?cddtype=individual' \
+  --header 'Authorization: Bearer {{token}}' \
+  --header 'Content-Type: application/json' \
+  --data '{"categorytype": "individual", "results": ["NP", null]}'
+```
+
+**Fixes on save.** Before saving, payload repairs common copy-paste damage and tells you what it
+changed: a leading `$` prompt, spaces after a line-continuation `\`, curly quotes, a missing `curl`,
+a lower-case `-X post`, and trailing commas in a `--data` JSON body. It warns (but still saves) when a
+`--data` body isn't valid JSON, a header has no `:`, or there's no URL, and refuses a command it can't
+parse (an unclosed quote) or one that isn't curl.
+
+**Every step is shown** on stderr — which request it loaded, which `{{placeholders}}` it filled, the
+flags you added, the exact command, and how long curl took (or its exit code with the reason, such as
+`6 couldn't resolve host`). The response goes to stdout, so `payload curl x > out.json` stays clean.
+`payload` exits with curl's exit code.
+
+`payload curl table` lists the requests with their method and URL in a blue table: **enter** runs
+the selected one, **e** edits (sets) it, **a** adds a new one, **c** copies the command with
+placeholders filled in, **d** deletes. Requests are stored in **plain text** in `vault/curl.json`.
+Needs `curl` on PATH (built into Windows 10+, macOS and most Linux).
+
 ## Install (prebuilt binary)
 
 From Git Bash (Windows), macOS or Linux:
@@ -77,7 +122,9 @@ C:\payload\                    (~/payload on macOS/Linux)
 ├── <key>.json                 your saved payloads
 ├── README.md                  guide for AI assistants: what payload can do and how to drive it
 ├── bin\payload.exe            the binary (on PATH)
-├── vault│   └── env.json               env vault values (plain text)
+├── vault\
+│   ├── env.json               env vault values (plain text)
+│   └── curl.json              saved curl requests (plain text)
 └── customization\
     └── settings.json          key-binding overrides
 ```
@@ -130,6 +177,11 @@ action out — or deleting the whole file — falls back to the built-in keys. *
     "env_table": {
       "reveal": ["v"],
       "reveal_all": ["V"]
+    },
+    "curl_table": {
+      "run": ["enter"],
+      "edit": ["e"],
+      "add": ["a"]
     },
     "editor": {
       "save": ["ctrl+s"],
