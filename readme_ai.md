@@ -49,10 +49,13 @@ cannot be empty, `.` or `..`, or contain any of `/ \ : * ? " < > |`.
 | `payload curl table [page]` | Browse requests: enter run, e edit, a add, c copy, d delete | prints one page when piped |
 | `payload curl path` | Print the curl `payload curl` runs: the bundled `bin/curl/curl.exe` if present, else the one on PATH | yes |
 | `payload curl install` | Download the bundled curl for this release, verified against SHA256SUMS (Windows only) | yes |
+| `payload clients` | Table of computers running `listen`; enter opens a text area, Ctrl+S sends to that one. Piped: prints the table | prints the table when piped |
 | `payload clipboard listen` | Receive text from other computers on the network onto this clipboard; runs until Ctrl+C | no — long-running; don't start it for the user |
 | `payload clipboard [text]` | Send text (or stdin, or the current clipboard when neither) to every `listen`er on the local network; exits 1 when none received it | yes |
 | `payload path` | Print the storage folder | yes |
 | `payload settings` | Print the settings file path | yes |
+| `payload settings name` | Print the name other computers see (settings `"name"`, else the computer name) | yes |
+| `payload settings set-name <name>` | Set that name (saved as `"name"` in settings.json) | yes |
 | `payload setup` | Create `customization/settings.json` if missing and rewrite this README | yes |
 | `payload ai` | Print this guide (markdown) | yes |
 | `payload version` | Print the version | yes |
@@ -164,6 +167,7 @@ below. Ctrl+C always quits.
 ```json
 {
   "update_check": true,
+  "name": "snype",
   "keybinds": {
     "table": {
       "up": ["up", "k"],
@@ -186,6 +190,10 @@ below. Ctrl+C always quits.
       "run": ["enter"],
       "edit": ["e"],
       "add": ["a"]
+    },
+    "clients_table": {
+      "send": ["enter"],
+      "refresh": ["r"]
     },
     "editor": {
       "save": ["ctrl+s"],

@@ -25,6 +25,11 @@ func editJSONTUI(key, initial string) string {
 // editTextTUI is the full-screen editor behind editJSONTUI; status renders the line under the text
 // (e.g. whether it parses). It reports false when the user cancels.
 func editTextTUI(title string, badge lipgloss.Style, initial, placeholder string, status func(string) string) (string, bool) {
+	return editTextVerbTUI(title, badge, initial, placeholder, "save", status)
+}
+
+// editTextVerbTUI is editTextTUI with the save key's help word changed (e.g. "send").
+func editTextVerbTUI(title string, badge lipgloss.Style, initial, placeholder, verb string, status func(string) string) (string, bool) {
 	ta := textarea.New()
 	ta.ShowLineNumbers = true
 	ta.Prompt = ""
@@ -38,7 +43,7 @@ func editTextTUI(title string, badge lipgloss.Style, initial, placeholder string
 	ta.SetValue(initial)
 	ta.Focus()
 
-	m, err := tea.NewProgram(editorModel{title: title, badge: badge, status: status, ta: ta}, tea.WithAltScreen()).Run()
+	m, err := tea.NewProgram(editorModel{title: title, badge: badge, verb: verb, status: status, ta: ta}, tea.WithAltScreen()).Run()
 	if err != nil {
 		fail("%v", err)
 	}
@@ -49,6 +54,7 @@ func editTextTUI(title string, badge lipgloss.Style, initial, placeholder string
 type editorModel struct {
 	title  string
 	badge  lipgloss.Style
+	verb   string // what the save key does, for the help line
 	status func(string) string
 	ta     textarea.Model
 	saved  bool
@@ -88,7 +94,7 @@ func (m editorModel) View() string {
 	if val := strings.TrimSpace(m.ta.Value()); val != "" {
 		status = m.status(val)
 	}
-	help := styleMuted.Render(keyLabel("editor", "save") + " save · " + keyLabel("editor", "cancel") +
+	help := styleMuted.Render(keyLabel("editor", "save") + " " + m.verb + " · " + keyLabel("editor", "cancel") +
 		" cancel · arrows/home/end/pgup/pgdn move")
 	return header + "\n" + m.ta.View() + "\n" + status + "   " + help
 }

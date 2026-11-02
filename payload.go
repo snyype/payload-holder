@@ -89,12 +89,14 @@ func main() {
 		envCmd(os.Args[2:])
 	case "curl":
 		curlCmd(os.Args[2:])
+	case "clients":
+		clientsCmd()
 	case "clipboard", "clip":
 		clipboardCmd(os.Args[2:])
 	case "path":
 		fmt.Println(dir)
 	case "settings":
-		settingsCmd()
+		settingsCmd(os.Args[2:])
 	case "setup":
 		setup()
 	case "ai":
@@ -137,10 +139,12 @@ func usage() {
 		{"payload curl table [page]", "browse curl requests (enter run · e edit · a add · d delete)"},
 		{"payload curl path", "print the curl that payload curl runs (bundled or on PATH)"},
 		{"payload curl install", "download the bundled curl into bin/curl (Windows)"},
+		{"payload clients", "pick a listening computer and send it text (enter, then ctrl+s)"},
 		{"payload clipboard listen", "receive text from the network onto your clipboard (Ctrl+C stops)"},
 		{"payload clipboard [text]", "send text (or stdin, or your clipboard) to every listener on the network"},
 		{"payload path", "print the storage folder"},
 		{"payload settings", "print the key-bindings settings file path"},
+		{"payload settings set-name <n>", "set the name others see in payload clients"},
 		{"payload setup", "create the settings file if missing and refresh README.md"},
 		{"payload ai", "print the guide for AI assistants (markdown)"},
 		{"payload version", "print the installed version"},

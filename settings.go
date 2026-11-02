@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -46,6 +47,10 @@ func defaultBindings() bindings {
 			"edit": {"e"},
 			"add":  {"a"},
 		},
+		"clients_table": {
+			"send":    {"enter"},
+			"refresh": {"r"},
+		},
 		"editor": {
 			"save":   {"ctrl+s"},
 			"cancel": {"esc"},
@@ -62,6 +67,7 @@ var updateCheck = true
 type settingsFile struct {
 	Help        string   `json:"_help,omitempty"`
 	UpdateCheck *bool    `json:"update_check,omitempty"`
+	Name        string   `json:"name,omitempty"`
 	Keybinds    bindings `json:"keybinds"`
 }
 
@@ -109,7 +115,7 @@ func writeDefaultSettings() (created bool, err error) {
 	data, _ := json.MarshalIndent(settingsFile{
 		Help: "Key bindings for payload. Each action takes a list of keys, e.g. \"ctrl+s\", \"enter\", \"esc\", " +
 			"\"space\", \"up\", \"pgdown\", \"x\". Remove an action (or this whole file) to use its default keys. " +
-			"Ctrl+C always quits. env_table and curl_table only add their own keys (show/hide; run/edit/add); they move, copy and delete with the table keys. update_check: false stops the daily check for new versions.",
+			"Ctrl+C always quits. env_table, curl_table and clients_table only add their own keys (show/hide; run/edit/add; send/refresh); they move, copy and delete with the table keys. update_check: false stops the daily check for new versions. name: what other computers see in their payload clients table (set it with: payload settings set-name).",
 		UpdateCheck: &on,
 		Keybinds:    defaultBindings(),
 	}, "", "  ")
@@ -177,13 +183,75 @@ func setup() {
 }
 
 // settingsCmd prints where the settings file lives and whether it is in use.
-func settingsCmd() {
+func settingsCmd(args []string) {
+	if len(args) > 0 {
+		switch args[0] {
+		case "set-name":
+			if len(args) != 2 {
+				fail("usage: payload settings set-name <name>")
+			}
+			name, err := setClientName(args[1])
+			if err != nil {
+				fail("%v", err)
+			}
+			success("Your name is now %s %s", styleTitle.Render(name), styleMuted.Render("(shown in other people's payload clients table)"))
+			return
+		case "name":
+			fmt.Println(clientName())
+			return
+		}
+		fail("unknown settings command %q — use: payload settings, payload settings name, payload settings set-name <name>", args[0])
+	}
 	path := settingsPath()
 	if _, err := os.Stat(path); err != nil {
 		fmt.Println(path + styleMuted.Render("  (not present — default keys; run \"payload setup\" to create it)"))
 		return
 	}
 	fmt.Println(path)
+}
+
+// savedClientName is "name" from settings.json ("" when not set).
+func savedClientName() string {
+	data, err := os.ReadFile(settingsPath())
+	if err != nil {
+		return ""
+	}
+	var f struct {
+		Name string `json:"name"`
+	}
+	_ = json.Unmarshal(data, &f)
+	return strings.TrimSpace(f.Name)
+}
+
+// setClientName stores "name" in settings.json, creating the file if needed and keeping the rest.
+func setClientName(name string) (string, error) {
+	name = strings.Join(strings.Fields(name), " ")
+	switch {
+	case name == "":
+		return "", fmt.Errorf("the name can't be empty")
+	case len([]rune(name)) > 40:
+		return "", fmt.Errorf("the name is too long (40 characters at most)")
+	}
+	if _, err := writeDefaultSettings(); err != nil {
+		return "", err
+	}
+	data, err := os.ReadFile(settingsPath())
+	if err != nil {
+		return "", err
+	}
+	var f map[string]json.RawMessage
+	if err := json.Unmarshal(data, &f); err != nil {
+		return "", fmt.Errorf("%s is not valid JSON: %v", settingsPath(), err)
+	}
+	f["name"], _ = json.Marshal(name)
+	var out bytes.Buffer
+	enc := json.NewEncoder(&out)
+	enc.SetEscapeHTML(false) // keep "<name>" readable in _help
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(f); err != nil {
+		return "", err
+	}
+	return name, os.WriteFile(settingsPath(), out.Bytes(), 0o644)
 }
 
 // settingsWarn reports a settings problem on stderr, so piped output (e.g. payload <key> > body.json) stays clean.

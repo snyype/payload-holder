@@ -72,6 +72,15 @@ func clipboardCmd(args []string) {
 	clipSend(text, source)
 }
 
+// clientName is the name other computers see: "name" in settings.json, else the computer name.
+// It is read from the file each time, so a running listener picks up "payload settings set-name".
+func clientName() string {
+	if n := savedClientName(); n != "" {
+		return n
+	}
+	return hostName()
+}
+
 func hostName() string {
 	h, err := os.Hostname()
 	if err != nil || h == "" {
@@ -90,21 +99,19 @@ func clipListen() {
 	if err != nil {
 		fail("could not listen on TCP port %d: %v — is another \"payload clipboard listen\" running?", clipPort, err)
 	}
-	name := hostName()
-	fmt.Println(styleBadge.Render("clipboard") + "  listening as " + styleTitle.Render(name) +
+	fmt.Println(styleBadge.Render("clipboard") + "  listening as " + styleTitle.Render(clientName()) +
 		styleMuted.Render(fmt.Sprintf(" on port %d (%s)", clipPort, strings.Join(localIPs(), ", "))))
 	info("Text sent with \"payload clipboard <text>\" from this network goes onto your clipboard. Ctrl+C stops.")
 
 	go func() {
 		buf := make([]byte, 512)
-		reply := []byte(clipAnswer + " " + name)
 		for {
 			n, addr, err := udp.ReadFromUDP(buf)
 			if err != nil {
 				continue
 			}
 			if string(buf[:n]) == clipAsk {
-				_, _ = udp.WriteToUDP(reply, addr)
+				_, _ = udp.WriteToUDP([]byte(clipAnswer+" "+clientName()), addr)
 			}
 		}
 	}()
@@ -159,7 +166,7 @@ func clipSend(text, source string) {
 	if len(peers) == 0 {
 		fail("no one is listening — run \"payload clipboard listen\" on the other computers (same network; allow payload through the firewall)")
 	}
-	from := hostName()
+	from := clientName()
 	local := map[string]bool{}
 	for _, ip := range localIPs() {
 		local[ip] = true

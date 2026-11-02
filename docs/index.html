@@ -260,10 +260,12 @@
       <tr><td><code>payload table [page]</code></td><td>Browse keys in a table, 10 per page — ←/→ to page, ↑/↓ to select, enter to view, <code>c</code> to copy, <code>d</code> to delete</td></tr>
       <tr><td><code>payload env &lt;sub&gt;</code></td><td>Global values like <code>localUrl</code> or <code>token</code> that payloads use as <code>{{name}}</code> — <code>set</code>, <code>list</code>, <code>drop</code>, <code>table</code>, or a name to print it (<a href="#env">env vault</a>)</td></tr>
       <tr><td><code>payload curl &lt;sub&gt;</code></td><td>Saved curl requests — run one by name with extra flags (<code>payload curl risk -vvk</code>), or <code>set</code>, <code>show</code>, <code>list</code>, <code>drop</code>, <code>table</code> (<a href="#curl">curl requests</a>)</td></tr>
+      <tr><td><code>payload clients</code></td><td>Table of everyone listening — pick one, paste text, <strong>Ctrl+S</strong> sends it to just them (<a href="#clipboard">shared clipboard</a>)</td></tr>
       <tr><td><code>payload clipboard listen</code></td><td>Receive text from other computers on your network straight onto your clipboard (<a href="#clipboard">shared clipboard</a>)</td></tr>
       <tr><td><code>payload clipboard [text]</code></td><td>Send text — or piped input, or what's on your clipboard — to every computer running <code>listen</code></td></tr>
       <tr><td><code>payload path</code></td><td>Print the storage folder</td></tr>
       <tr><td><code>payload settings</code></td><td>Print the path of the key-bindings settings file</td></tr>
+      <tr><td><code>payload settings set-name &lt;name&gt;</code></td><td>Set the name others see in <code>payload clients</code> (<code>payload settings name</code> prints it)</td></tr>
       <tr><td><code>payload setup</code></td><td>Create the settings file if it's missing and refresh the AI README (the installer runs this)</td></tr>
       <tr><td><code>payload ai</code></td><td>Print the guide for AI assistants (markdown) — tell your agent to run it</td></tr>
       <tr><td><code>payload version</code></td><td>Print the installed version</td></tr>
@@ -375,7 +377,18 @@
       <tr><td><code>payload clipboard &lt;text&gt;</code></td><td>Send the text to every listener on the network</td></tr>
       <tr><td><code>payload create_order | payload clipboard</code></td><td>Send piped input — any size up to 16 MB</td></tr>
       <tr><td><code>payload clipboard</code></td><td>Nothing given: send what's on your clipboard now</td></tr>
+      <tr><td><code>payload clients</code></td><td>Send to one person: pick them in a table (↑/↓, <strong>enter</strong>), paste into the text area, <strong>Ctrl+S</strong> sends. <code>r</code> searches again</td></tr>
+      <tr><td><code>payload settings set-name "snype"</code></td><td>The name others see in their table — payload asks for it the first time you run <code>payload clients</code></td></tr>
     </table>
+    <pre class="term"><span class="p">$</span> payload clients
+<span class="b"> clients </span>  2 listening · you are snype
+╭───┬───────────────────────┬──────────────╮
+│ # │ NAME                  │ IP           │
+├───┼───────────────────────┼──────────────┤
+│ 1 │ LAPTOP-K0482585       │ 192.168.1.64 │
+│ 2 │ snype (this computer) │ 192.168.1.65 │
+╰───┴───────────────────────┴──────────────╯
+  ↑/↓ select · enter send text · r search again · q quit</pre>
     <pre class="term"><span class="p">$</span> payload clipboard "http://192.168.1.65:8000"
 Looking for listeners on the network…
 <span class="p">✓</span> DESKTOP-SITA <span class="m">(192.168.1.42)</span>
@@ -429,9 +442,10 @@ go build -o payload.exe .   <span class="c"># or: go build -o payload .</span></
   <section id="customization">
     <h2>Customization</h2>
     <p class="sub">Rebind any key in the tables and the JSON editor. Your settings override the defaults — delete the file to go back.</p>
-    <p>Edit <code>customization/settings.json</code> in the payload folder (<code>payload settings</code> prints the path). Each action takes a list of keys (<code>env_table</code> and <code>curl_table</code> only add their own keys — show/hide, run/edit/add — and move, copy and delete with the <code>table</code> keys); any action you leave out, or the whole file if you delete it, falls back to the built-in keys. <strong>Ctrl+C</strong> always quits, and the help lines show whatever keys you choose.</p>
+    <p>Edit <code>customization/settings.json</code> in the payload folder (<code>payload settings</code> prints the path). Each action takes a list of keys (<code>env_table</code>, <code>curl_table</code> and <code>clients_table</code> only add their own keys — show/hide, run/edit/add, send/refresh — and move, copy and delete with the <code>table</code> keys); any action you leave out, or the whole file if you delete it, falls back to the built-in keys. <strong>Ctrl+C</strong> always quits, and the help lines show whatever keys you choose.</p>
 <pre>{
   "update_check": true,
+  "name": "snype",
   "keybinds": {
     "table": {
       "up": ["up", "k"],          "down": ["down", "j"],
@@ -444,6 +458,7 @@ go build -o payload.exe .   <span class="c"># or: go build -o payload .</span></
     },
     "env_table": { "reveal": ["v"], "reveal_all": ["V"] },
     "curl_table": { "run": ["enter"], "edit": ["e"], "add": ["a"] },
+    "clients_table": { "send": ["enter"], "refresh": ["r"] },
     "editor": { "save": ["ctrl+s"], "cancel": ["esc"] }
   }
 }</pre>

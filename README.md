@@ -30,10 +30,12 @@ payload curl drop <name>... delete saved curl requests
 payload curl table [page]   browse curl requests (enter run, e edit, a add, c copy, d delete)
 payload curl path           print the curl that payload curl runs (bundled, or the one on PATH)
 payload curl install        download the bundled curl into bin\curl (Windows)
+payload clients             pick a listening computer and send it text (enter, paste, Ctrl+S)
 payload clipboard listen    receive text from the network onto your clipboard (Ctrl+C stops)
 payload clipboard [text]    send text (or piped input, or your clipboard) to every listener on the network
 payload path     print the storage folder
 payload settings print the key-bindings settings file path
+payload settings set-name <name>   set the name others see in payload clients (payload settings name prints it)
 payload setup    create the settings file if missing and refresh the AI README
 payload ai       print the guide for AI assistants (markdown)
 payload version  print the installed version
@@ -147,6 +149,24 @@ nothing to set up — but Windows Firewall asks the first time `listen` runs; al
 networks. While listening, anyone on the network can put text on your clipboard, and text travels
 unencrypted: use it on networks you trust and stop it (Ctrl+C) when you're done.
 
+**Send to one person.** `payload clients` lists everyone listening, with their name and IP:
+
+```
+ clients   2 listening · you are snype
+╭───┬───────────────────────┬──────────────╮
+│ # │ NAME                  │ IP           │
+├───┼───────────────────────┼──────────────┤
+│ 1 │ LAPTOP-K0482585       │ 192.168.1.64 │
+│ 2 │ snype (this computer) │ 192.168.1.65 │
+╰───┴───────────────────────┴──────────────╯
+```
+
+↑/↓ to pick, **enter** opens a text area to type or paste into, **Ctrl+S** sends it to that computer
+only (Esc cancels), then you're back at the table; **r** searches again. The first time you run it,
+payload asks your name — that's what others see in their table and in their listen log. It is saved as
+`"name"` in `settings.json`; change it with `payload settings set-name "snype"` (a running listener
+picks it up straight away). Without a name, the computer name is used.
+
 ## Install (prebuilt binary)
 
 From Git Bash (Windows), macOS or Linux:
@@ -202,6 +222,7 @@ action out — or deleting the whole file — falls back to the built-in keys. *
 ```json
 {
   "update_check": true,
+  "name": "snype",
   "keybinds": {
     "table": {
       "up": ["up", "k"],
@@ -224,6 +245,10 @@ action out — or deleting the whole file — falls back to the built-in keys. *
       "run": ["enter"],
       "edit": ["e"],
       "add": ["a"]
+    },
+    "clients_table": {
+      "send": ["enter"],
+      "refresh": ["r"]
     },
     "editor": {
       "save": ["ctrl+s"],
