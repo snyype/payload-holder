@@ -3,6 +3,11 @@
 Every release has a section here; the release build publishes it as the GitHub release notes and
 `payload doctor` shows it under "What's new" before updating. `payload changelog` prints this file.
 
+## v2.3.1 — 2026-11-03
+
+- Fixed `payload auth login` in v2.3.0, which was built with the old OAuth App and could not reach the
+  sync repo. This build uses the payload GitHub App. Run `payload auth login` again after updating.
+
 ## v2.3.0 — 2026-11-03
 
 - `payload sync` can now reach **only one repo**: `<you>/payload-sync`. Login is now a GitHub App
