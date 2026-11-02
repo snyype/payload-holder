@@ -291,6 +291,7 @@ func doctor(dir string) {
 	if err != nil || !(version == "dev" || newer(latest, version)) {
 		return // offline or up to date
 	}
+	showWhatsNew(latest)
 	fmt.Println()
 	question := fmt.Sprintf("Update payload to %s?", latest)
 	if version == "dev" {

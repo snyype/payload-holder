@@ -39,7 +39,8 @@ payload settings set-name <name>   set the name others see in payload clients (p
 payload setup    create the settings file if missing and refresh the AI README
 payload ai       print the guide for AI assistants (markdown)
 payload version  print the installed version
-payload doctor   check the install; update to the latest release if there is one
+payload changelog [version]   print what changed in each release (built in, works offline)
+payload doctor   check the install; show what's new and update to the latest release if there is one
 payload fix      reinstall the version you're on (verified against its SHA256SUMS)
 payload fix --verify   check the installed binary against its release's SHA256SUMS (changes nothing)
 ```
@@ -279,7 +280,8 @@ Without internet it says `Version check failed (no internet connection)` once an
 day. The notice goes to stderr and only appears on a terminal, so piped output is untouched.
 
 `payload doctor` checks the install (version, binary and PATH, storage, settings, and on Linux the
-clipboard) and, when a newer release exists, offers to update in place: it downloads the release for
+clipboard) and, when a newer release exists, shows **What's new** — the changelog of every release
+between yours and the latest — then offers to update in place: it downloads the release for
 your OS, checks it against the release's `SHA256SUMS`, makes sure it runs, swaps it in and refreshes
 the AI README. If an install seems broken,
 `payload fix --verify` re-downloads the checksums for your version and checks the installed binary, and
@@ -294,12 +296,22 @@ Copilot, …) on what payload can do, where payloads live, and how to use it wit
 
 ## Releasing
 
-Push a version tag; the `release` workflow builds Windows/Linux/macOS binaries and attaches them to a
-GitHub Release:
+Add a section for the new version at the top of [`CHANGELOG.md`](CHANGELOG.md), commit it, then push a
+version tag; the `release` workflow builds Windows/Linux/macOS binaries and attaches them to a GitHub
+Release whose notes are that section:
+
+```md
+## v1.0.1 — 2026-11-02
+
+- What changed, one bullet per change.
+```
 
 ```sh
 git tag v1.0.1 && git push origin v1.0.1
 ```
+
+The workflow fails before publishing if `CHANGELOG.md` has no `## <tag>` section. `payload doctor`
+reads the same file (from the new tag) to show "What's new".
 
 ## If Windows blocks payload
 

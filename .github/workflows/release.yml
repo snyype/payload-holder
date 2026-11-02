@@ -65,6 +65,15 @@ jobs:
           sha256sum payload_* curl_* > SHA256SUMS
           cat SHA256SUMS
 
+      # The release notes are this tag's section of CHANGELOG.md ("## vX.Y.Z — date"); "payload doctor"
+      # shows the same text under "What's new". A tag without a section fails here, before publishing.
+      - name: Release notes
+        run: |
+          awk -v tag="$GITHUB_REF_NAME" '/^## /{p = ($2 == tag); next} p' CHANGELOG.md > release-notes.md
+          grep -q '[^[:space:]]' release-notes.md || { echo "CHANGELOG.md has no section for $GITHUB_REF_NAME"; exit 1; }
+          cat release-notes.md
+
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*
+          body_path: release-notes.md

@@ -101,6 +101,8 @@ func main() {
 		setup()
 	case "ai":
 		fmt.Print(aiGuide())
+	case "changelog":
+		changelogCmd(os.Args[2:])
 	case "version", "--version", "-v":
 		fmt.Println(version)
 	case "-h", "--help", "help":
@@ -148,7 +150,8 @@ func usage() {
 		{"payload setup", "create the settings file if missing and refresh README.md"},
 		{"payload ai", "print the guide for AI assistants (markdown)"},
 		{"payload version", "print the installed version"},
-		{"payload doctor", "check the install and update to the latest release"},
+		{"payload changelog [version]", "print what changed in each release"},
+		{"payload doctor", "check the install, show what's new and update to the latest release"},
 		{"payload fix", "reinstall the version you're on (verified download)"},
 		{"payload fix --verify", "check the installed binary against its release checksum"},
 	}
