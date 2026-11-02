@@ -414,7 +414,7 @@ Looking for listeners on the network…
       <tr><td><code>payload sync push</code></td><td>Make <code>&lt;you&gt;/payload-sync</code> match this computer. Every push is a commit, so history is kept</td></tr>
       <tr><td><code>payload sync pull [-y]</code></td><td>Make this computer match the repo. Shows what changes and asks first; a backup of everything replaced or deleted goes to <code>.cache/sync-backup</code></td></tr>
     </table>
-    <p><strong>One-time setup on GitHub:</strong> create a <strong>private</strong> repo named <code>payload-sync</code>, then install the <strong>payload</strong> GitHub App and pick <strong>Only select repositories → payload-sync</strong>. <code>payload auth login</code> prints both links if they're missing.</p>
+    <p><strong>One-time setup on GitHub:</strong> create a <strong>private</strong> repo named <code>payload-sync</code>, then install the <strong>payload</strong> GitHub App and pick <strong>Only select repositories → payload-sync</strong>. Right after you log in, <code>payload auth login</code> opens the install page in your browser and waits until payload can reach the repo.</p>
     <pre class="term"><span class="p">$</span> payload sync push
   <span class="p">+</span> create_order
   <span class="b">~</span> risk_payload

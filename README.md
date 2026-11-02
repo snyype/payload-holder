@@ -183,7 +183,9 @@ One-time setup on GitHub:
 
 1. Create a **private** repo named `payload-sync` (empty is fine).
 2. Install the **payload** GitHub App on your account and choose **Only select repositories →
-   payload-sync**. `payload auth login` prints both links if they're missing.
+   payload-sync**. You don't need to look for it: right after you log in, `payload auth login` opens
+   the install page (or, if the app is installed without that repo, its settings) in your browser and
+   waits until payload can reach the repo.
 
 ```sh
 payload auth login     # opens GitHub in your browser; approve, and you're back in the terminal

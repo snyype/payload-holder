@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // fakeGitHub is just enough of GitHub's OAuth and git data API, kept in memory, to run
@@ -24,6 +25,8 @@ type fakeGitHub struct {
 	t         *testing.T
 	repo      string
 	exists    bool // the repo exists and the app is installed on it
+	installs  bool // visiting the install page installs the app (the user clicks through it)
+	installID int  // non-zero once installed (possibly without the repo)
 	access    string
 	refresh   string
 	refreshes int
@@ -58,6 +61,14 @@ func (f *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(v)
 	}
 	p := r.URL.Path
+	if p == "/apps/payload-test/installations/new" || p == "/settings/installations/42" {
+		// The user installs the app on the repo (or adds the repo to the installation).
+		if f.installs {
+			f.exists, f.installID = true, 42
+		}
+		reply(200, map[string]any{})
+		return
+	}
 	if p == "/login/oauth/authorize" {
 		q := r.URL.Query()
 		f.challenge = q.Get("code_challenge")
@@ -99,6 +110,12 @@ func (f *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case p == "/user":
 		reply(200, map[string]string{"login": "octo", "name": "Octo Cat"})
+	case p == "/user/installations":
+		list := []map[string]any{}
+		if f.installID != 0 {
+			list = append(list, map[string]any{"id": f.installID})
+		}
+		reply(200, map[string]any{"installations": list})
 	case p == "/user/emails":
 		reply(200, []map[string]any{{"email": "octo@example.com", "primary": true, "verified": true}})
 	case p == base && r.Method == "GET":
@@ -192,9 +209,18 @@ func writeFile(t *testing.T, path, content string) {
 func TestMain(m *testing.M) {
 	if os.Getenv("PAYLOAD_TEST_MAIN") == "1" {
 		githubWebURL, githubAPIURL = os.Getenv("FAKE_GH"), os.Getenv("FAKE_GH")
+		authInstallWait = 4 * time.Second
 		openBrowser = func(u string) error {
 			au, _ := url.Parse(u)
 			cb := au.Query().Get("redirect_uri")
+			if cb == "" { // not the login page: the user visits it (e.g. installs the app)
+				go func() {
+					if resp, err := http.Get(u); err == nil {
+						resp.Body.Close()
+					}
+				}()
+				return nil
+			}
 			go func() {
 				// A reply with the wrong state is refused and must not end the login...
 				if resp, err := http.Get(cb + "?code=evil&state=wrong"); err == nil {
@@ -266,16 +292,31 @@ func TestLoginPushPull(t *testing.T) {
 	if strings.Contains(string(raw), "tok-") || strings.Contains(string(raw), "ref-") {
 		t.Fatal("token stored in plain text")
 	}
-	// No repo / app not installed yet: login says how to set it up, and push refuses.
-	if !strings.Contains(out, "can't reach octo/payload-sync") || !strings.Contains(out, "/apps/payload-test/installations/new") {
+	// App not installed and the user doesn't finish installing: login opens the install page, waits,
+	// then says how to finish; push refuses.
+	if !strings.Contains(out, "can't reach octo/payload-sync") || !strings.Contains(out, "/apps/payload-test/installations/new") ||
+		!strings.Contains(out, "Still can't reach") {
 		t.Errorf("login without the repo:\n%s", out)
 	}
 	if out, code = runPayload(t, srv.URL, a, "sync", "push"); code == 0 || !strings.Contains(out, "visibility=private") {
 		t.Errorf("push without the repo (%d):\n%s", code, out)
 	}
+	// Installed without the repo: login opens that installation's settings instead.
 	f.mu.Lock()
-	f.exists = true // the user created an empty private repo and installed the app on it
+	f.installID = 42
 	f.mu.Unlock()
+	if out, _ = runPayload(t, srv.URL, a, "auth", "login"); !strings.Contains(out, "/settings/installations/42") {
+		t.Errorf("login with the app installed elsewhere:\n%s", out)
+	}
+	// This time the user completes it in the browser: login notices and says so.
+	f.mu.Lock()
+	f.installs = true
+	f.mu.Unlock()
+	out, code = runPayload(t, srv.URL, a, "auth", "login")
+	if code != 0 || !strings.Contains(out, "payload can reach octo/payload-sync") {
+		t.Fatalf("login with install (%d):\n%s", code, out)
+	}
+	raw, _ = os.ReadFile(authFilePath)
 
 	// An expired access token is renewed with the refresh token, and the new pair is saved.
 	var saved map[string]any

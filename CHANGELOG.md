@@ -3,6 +3,12 @@
 Every release has a section here; the release build publishes it as the GitHub release notes and
 `payload doctor` shows it under "What's new" before updating. `payload changelog` prints this file.
 
+## v2.3.2 — 2026-11-03
+
+- After you approve the login, `payload auth login` opens the page to install the payload GitHub App on
+  `payload-sync` (or to add the repo, if the app is installed without it) and waits until payload can
+  reach the repo — no need to find the page yourself or run anything again.
+
 ## v2.3.1 — 2026-11-03
 
 - Fixed `payload auth login` in v2.3.0, which was built with the old OAuth App and could not reach the

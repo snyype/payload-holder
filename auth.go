@@ -365,8 +365,53 @@ func authLogin() {
 	case err == nil:
 		info("Next: payload sync push   (to %s)", a.syncRepo())
 	case isStatus(err, 404):
-		fmt.Println(styleWarn.Render("! ") + "payload can't reach " + a.syncRepo() + " yet:")
-		syncRepoHelp(a)
+		setupSyncAccess(gh, a, interrupt)
+	}
+}
+
+// authInstallWait is how long login waits for the app to be given access to the sync repo.
+var authInstallWait = 5 * time.Minute
+
+// setupSyncAccess opens the GitHub page that gives the app access to the sync repo — the app's install
+// page, or the existing installation's settings when it is installed without that repo — then waits
+// until the repo is reachable.
+func setupSyncAccess(gh *githubClient, a authFile, interrupt <-chan os.Signal) {
+	target, what := appInstallURL(), "install the payload app"
+	var inst struct {
+		Installations []struct {
+			ID int64 `json:"id"`
+		} `json:"installations"`
+	}
+	if gh.do("GET", "/user/installations", nil, &inst) == nil && len(inst.Installations) > 0 {
+		target = fmt.Sprintf("%s/settings/installations/%d", githubWebURL, inst.Installations[0].ID)
+		what = "give the payload app access to " + syncRepoName
+	}
+	fmt.Println(styleWarn.Render("! ") + "payload can't reach " + a.syncRepo() + " yet.")
+	fmt.Println("  If the repo doesn't exist, create it first (private): " +
+		githubWebURL + "/new?name=" + syncRepoName + "&visibility=private")
+	fmt.Println("  Opening GitHub to " + what + " — choose " + styleTitle.Render("Only select repositories → "+syncRepoName) + ":")
+	fmt.Println("  " + target)
+	_ = openBrowser(target)
+	info("Waiting for access… (Ctrl+C to finish later — payload auth status checks again)")
+
+	tick := time.NewTicker(3 * time.Second)
+	defer tick.Stop()
+	deadline := time.After(authInstallWait)
+	for {
+		select {
+		case <-tick.C:
+			if gh.do("GET", "/repos/"+a.syncRepo(), nil, nil) == nil {
+				success("payload can reach %s — next: payload sync push", styleTitle.Render(a.syncRepo()))
+				return
+			}
+		case <-interrupt:
+			info("Stopped waiting. When it's set up: payload auth status, then payload sync push")
+			return
+		case <-deadline:
+			fmt.Println(styleWarn.Render("! ") + "Still can't reach " + a.syncRepo() + ". When it's set up:")
+			syncRepoHelp(a)
+			return
+		}
 	}
 }
 
