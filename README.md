@@ -174,6 +174,19 @@ payload asks your name — that's what others see in their table and in their li
 `"name"` in `settings.json`; change it with `payload settings set-name "snype"` (a running listener
 picks it up straight away). Without a name, the computer name is used.
 
+**Hold a client's text for approval.** Every computer has a **device ID** (like `pd-3f9a0c41d27be610`),
+made from the operating system's own machine ID, so it stays the same however often payload is
+reinstalled; `payload doctor` shows yours. In `payload clients`, press **s** for clipboard settings: a
+list of every client payload knows (listening now or set earlier), with what happens to their text.
+Press **space** (or enter, or h) on one to put it **on hold**: text they send still appears in your
+`payload clipboard listen` window, in full, but is **not copied** to your clipboard, and their send shows
+`⏸ held`. Toggling tells them — `⚑ snype flagged you risky — text you send them is on hold until they
+turn it off` in their listen window, or, if they aren't listening, the next time payload sees them —
+and toggling it off tells them it's released. Holds are saved by device ID under
+`"clipboard_clients"` in `settings.json`. Clients on payload older than v2.4.0 show as
+"copied (old version)" and can't be held until they update. A device ID is what the other computer
+says it is: it stops casual sending, not a determined attacker on your network.
+
 ## Sync with GitHub
 
 Keep payloads, saved curl requests and settings the same on every computer through **one private
@@ -294,7 +307,11 @@ action out — or deleting the whole file — falls back to the built-in keys. *
     },
     "clients_table": {
       "send": ["enter"],
-      "refresh": ["r"]
+      "refresh": ["r"],
+      "settings": ["s"]
+    },
+    "client_settings": {
+      "hold": ["space", "enter", "h"]
     },
     "editor": {
       "save": ["ctrl+s"],

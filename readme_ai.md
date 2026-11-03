@@ -50,7 +50,7 @@ cannot be empty, `.` or `..`, or contain any of `/ \ : * ? " < > |`.
 | `payload curl table [page]` | Browse requests: enter run, e edit, a add, c copy, d delete | prints one page when piped |
 | `payload curl path` | Print the curl `payload curl` runs: the bundled `bin/curl/curl.exe` if present, else the one on PATH | yes |
 | `payload curl install` | Download the bundled curl for this release, verified against SHA256SUMS (Windows only) | yes |
-| `payload clients` | Table of computers running `listen`; enter opens a text area, Ctrl+S sends to that one. Piped: prints the table | prints the table when piped |
+| `payload clients` | Table of computers running `listen`; enter opens a text area, Ctrl+S sends to that one; `s` opens clipboard settings to hold a client's text for approval. Piped: prints the table | prints the table when piped |
 | `payload clipboard listen` | Receive text from other computers on the network onto this clipboard; runs until Ctrl+C | no — long-running; don't start it for the user |
 | `payload clipboard [text]` | Send text (or stdin, or the current clipboard when neither) to every `listen`er on the local network; exits 1 when none received it | yes |
 | `payload auth login` | Log in with GitHub in the browser (local 127.0.0.1 callback); stores the token encrypted | no — needs the user's browser |
@@ -157,6 +157,11 @@ sends over TCP on the same port, unencrypted, to every computer on the network r
 `payload clipboard listen`. It sends to other people's machines — confirm before sending anything,
 and never send secrets or tokens.
 
+Clipboard holds: `customization/settings.json` → `"clipboard_clients": {"<device id>": {"name": "...", "hold": true}}`.
+A held client's text is shown in `payload clipboard listen` but not copied. Device IDs (`pd-` + 16 hex)
+come from the OS machine ID and survive reinstalls. Prefer the settings screen (it also notifies the
+client) over editing this by hand.
+
 ## Sync
 
 `payload sync push` uploads payloads (`payloads/<key>.json`), `vault/curl.json` and
@@ -211,7 +216,11 @@ below. Ctrl+C always quits.
     },
     "clients_table": {
       "send": ["enter"],
-      "refresh": ["r"]
+      "refresh": ["r"],
+      "settings": ["s"]
+    },
+    "client_settings": {
+      "hold": ["space", "enter", "h"]
     },
     "editor": {
       "save": ["ctrl+s"],

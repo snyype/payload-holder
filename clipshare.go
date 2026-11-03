@@ -24,21 +24,29 @@ import (
 const (
 	clipPort     = 47321
 	clipAsk      = "payload-clipboard?1"
-	clipAnswer   = "payload-clipboard!1"
+	clipAnswer   = "payload-clipboard!1" // "<answer> <name>" (all versions)
+	clipAnswer2  = "payload-clipboard!2" // "<answer2> <device id> <name>" (v2.4.0 and later)
 	clipMaxBytes = 16 << 20
 	clipWait     = 800 * time.Millisecond
 )
 
 // clipHeader is the first line of a TCP transfer; the text follows it.
 type clipHeader struct {
-	From string `json:"from"`
-	Size int    `json:"size"`
+	From   string `json:"from"`
+	ID     string `json:"id,omitempty"`     // the sender's device ID
+	Kind   string `json:"kind,omitempty"`   // "" (text) or "notice"
+	Notice string `json:"notice,omitempty"` // for a notice: hold or release
+	Size   int    `json:"size"`
 }
 
-// clipPeer is a listener that answered the broadcast.
+// clipLoopbackOnly keeps discovery on this computer (tests must never send to other people's listeners).
+var clipLoopbackOnly bool
+
+// clipPeer is a listener that answered the broadcast. ID is empty for versions before device IDs.
 type clipPeer struct {
 	Name string
 	IP   string
+	ID   string
 }
 
 func clipboardCmd(args []string) {
@@ -102,6 +110,19 @@ func clipListen() {
 	fmt.Println(styleBadge.Render("clipboard") + "  listening as " + styleTitle.Render(clientName()) +
 		styleMuted.Render(fmt.Sprintf(" on port %d (%s)", clipPort, strings.Join(localIPs(), ", "))))
 	info("Text sent with \"payload clipboard <text>\" from this network goes onto your clipboard. Ctrl+C stops.")
+	info("Device %s · hold a client's text for approval: payload clients, then s", deviceID())
+
+	// Notices for clients that weren't listening when they were flagged go out once they are.
+	go func() {
+		for {
+			time.Sleep(20 * time.Second)
+			if len(loadNotices()) > 0 {
+				if peers, err := clipDiscover(); err == nil {
+					deliverNotices(peers)
+				}
+			}
+		}
+	}()
 
 	go func() {
 		buf := make([]byte, 512)
@@ -111,7 +132,9 @@ func clipListen() {
 				continue
 			}
 			if string(buf[:n]) == clipAsk {
+				// Both answers: older senders only understand the first.
 				_, _ = udp.WriteToUDP([]byte(clipAnswer+" "+clientName()), addr)
+				_, _ = udp.WriteToUDP([]byte(clipAnswer2+" "+deviceID()+" "+clientName()), addr)
 			}
 		}
 	}()
@@ -140,17 +163,37 @@ func clipListen() {
 				return
 			}
 			ip, _, _ := net.SplitHostPort(c.RemoteAddr().String())
+			stamp := styleMuted.Render(time.Now().Format("15:04:05"))
+			from := styleTitle.Render(h.From)
+			if h.Kind == "notice" {
+				fmt.Fprintln(c, "ok")
+				switch h.Notice {
+				case noticeHold:
+					fmt.Println(stamp + " " + styleWarn.Render("⚑ ") + from + styleMuted.Render(" ("+ip+")") +
+						" flagged you risky — text you send them is on hold until they turn it off")
+				case noticeRelease:
+					fmt.Println(stamp + " " + styleOK.Render("✓ ") + from + styleMuted.Render(" ("+ip+")") +
+						" removed the hold — text you send them goes onto their clipboard again")
+				}
+				return
+			}
+			if isHeld(h.ID) {
+				fmt.Fprintf(c, "held: %s flagged you risky — what you send is on hold until they turn it off\n", clientName())
+				fmt.Println(stamp + " " + styleWarn.Render("⏸ ") + "Held text from " + from +
+					styleMuted.Render(" ("+ip+", "+humanSize(len(body))+") — not copied; on hold for approval"))
+				fmt.Println(heldText(string(body)))
+				return
+			}
 			mu.Lock()
 			err = copyText(string(body))
 			mu.Unlock()
-			stamp := styleMuted.Render(time.Now().Format("15:04:05"))
 			if err != nil {
 				fmt.Fprintf(c, "error: %v\n", err)
 				fmt.Println(stamp + " " + styleErr.Render("✗ ") + fmt.Sprintf("text from %s (%s) could not be copied: %v", h.From, ip, err))
 				return
 			}
 			fmt.Fprintln(c, "ok")
-			fmt.Println(stamp + " " + styleOK.Render("✓ ") + "Copied text from " + styleTitle.Render(h.From) +
+			fmt.Println(stamp + " " + styleOK.Render("✓ ") + "Copied text from " + from +
 				styleMuted.Render(" ("+ip+", "+humanSize(len(body))+")") + "  " + clipPreview(string(body)))
 		}(conn)
 	}
@@ -166,26 +209,34 @@ func clipSend(text, source string) {
 	if len(peers) == 0 {
 		fail("no one is listening — run \"payload clipboard listen\" on the other computers (same network; allow payload through the firewall)")
 	}
-	from := clientName()
 	local := map[string]bool{}
 	for _, ip := range localIPs() {
 		local[ip] = true
 	}
-	sent := 0
+	deliverNotices(peers)
+	sent, held := 0, 0
 	for _, p := range peers {
 		label := styleTitle.Render(p.Name) + styleMuted.Render(" ("+p.IP+")")
 		if local[p.IP] || net.ParseIP(p.IP).IsLoopback() {
 			label += styleMuted.Render(" this computer")
 		}
-		if err := clipDeliver(p.IP, from, text); err != nil {
+		hold, err := clipDeliver(p.IP, text)
+		switch {
+		case err != nil:
 			fmt.Println(styleErr.Render("✗ ") + label + " " + styleErr.Render(err.Error()))
-			continue
+		case hold != "":
+			fmt.Println(styleWarn.Render("⏸ ") + label + " " + styleWarn.Render(hold))
+			held++
+		default:
+			fmt.Println(styleOK.Render("✓ ") + label)
+			sent++
 		}
-		fmt.Println(styleOK.Render("✓ ") + label)
-		sent++
 	}
 	summary := fmt.Sprintf("Sent %s from %s to %d of %d listener(s)", humanSize(len(text)), source, sent, len(peers))
-	if sent == 0 {
+	if held > 0 {
+		summary += fmt.Sprintf(", %d held for approval", held)
+	}
+	if sent+held == 0 {
 		fail("%s", summary)
 	}
 	success("%s", summary)
@@ -199,6 +250,9 @@ func clipDiscover() ([]clipPeer, error) {
 	}
 	defer conn.Close()
 	targets := append([]net.IP{net.IPv4bcast}, broadcastAddrs()...)
+	if clipLoopbackOnly {
+		targets = nil
+	}
 	sentAny := false
 	for _, ip := range targets {
 		if _, err := conn.WriteToUDP([]byte(clipAsk), &net.UDPAddr{IP: ip, Port: clipPort}); err == nil {
@@ -207,7 +261,7 @@ func clipDiscover() ([]clipPeer, error) {
 	}
 	// A listener on this computer may not hear the broadcast; ask it directly too.
 	_, _ = conn.WriteToUDP([]byte(clipAsk), &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: clipPort})
-	if !sentAny {
+	if !sentAny && !clipLoopbackOnly {
 		return nil, errors.New("no network to broadcast on")
 	}
 
@@ -220,15 +274,39 @@ func clipDiscover() ([]clipPeer, error) {
 			break
 		}
 		msg := string(buf[:n])
-		if !strings.HasPrefix(msg, clipAnswer+" ") {
+		var p clipPeer
+		if rest, ok := strings.CutPrefix(msg, clipAnswer2+" "); ok {
+			id, name, _ := strings.Cut(rest, " ")
+			if !validDeviceID(id) {
+				continue
+			}
+			p = clipPeer{ID: id, Name: name}
+		} else if rest, ok := strings.CutPrefix(msg, clipAnswer+" "); ok {
+			p = clipPeer{Name: rest}
+		} else {
 			continue
 		}
-		p := clipPeer{Name: strings.TrimPrefix(msg, clipAnswer+" "), IP: addr.IP.String()}
-		// One entry per computer: a listener here answers both the broadcast and 127.0.0.1.
-		if old, ok := found[p.Name]; ok && !net.ParseIP(old.IP).IsLoopback() {
-			continue
+		p.IP = addr.IP.String()
+		// One entry per computer: a listener here answers both the broadcast and 127.0.0.1, and a
+		// new listener answers in both formats.
+		key := p.Name
+		if old, ok := found[key]; ok {
+			oldLAN, newLAN := !net.ParseIP(old.IP).IsLoopback(), !net.ParseIP(p.IP).IsLoopback()
+			if old.ID != "" && p.ID == "" { // keep the answer with the device ID; a LAN address beats loopback
+				if !oldLAN && newLAN {
+					old.IP = p.IP
+					found[key] = old
+				}
+				continue
+			}
+			if (old.ID == "") == (p.ID == "") && oldLAN {
+				continue
+			}
+			if oldLAN && !newLAN {
+				p.IP = old.IP
+			}
 		}
-		found[p.Name] = p
+		found[key] = p
 	}
 	peers := make([]clipPeer, 0, len(found))
 	for _, p := range found {
@@ -238,27 +316,63 @@ func clipDiscover() ([]clipPeer, error) {
 	return peers, nil
 }
 
-// clipDeliver sends text to one listener and waits for its answer.
-func clipDeliver(ip, from, text string) error {
-	addr := net.JoinHostPort(ip, fmt.Sprint(clipPort))
-	conn, err := net.DialTimeout("tcp4", addr, 3*time.Second)
+// clipDeliver sends text to one listener and waits for its answer. held is the listener's message
+// when it kept the text for approval instead of copying it.
+func clipDeliver(ip, text string) (held string, err error) {
+	reply, err := clipExchange(ip, clipHeader{From: clientName(), ID: deviceID(), Size: len(text)}, text)
 	if err != nil {
-		return errors.New("could not connect (firewall?)")
+		return "", err
+	}
+	if msg, ok := strings.CutPrefix(reply, "held: "); ok {
+		return msg, nil
+	}
+	if reply != "ok" {
+		return "", errors.New(strings.TrimPrefix(reply, "error: "))
+	}
+	return "", nil
+}
+
+// clipNotify tells a listener its text is now held (or released) by this computer.
+func clipNotify(ip, kind string) error {
+	reply, err := clipExchange(ip, clipHeader{From: clientName(), ID: deviceID(), Kind: "notice", Notice: kind}, "")
+	if err == nil && reply != "ok" {
+		err = errors.New(strings.TrimPrefix(reply, "error: "))
+	}
+	return err
+}
+
+func clipExchange(ip string, h clipHeader, text string) (string, error) {
+	conn, err := net.DialTimeout("tcp4", net.JoinHostPort(ip, fmt.Sprint(clipPort)), 3*time.Second)
+	if err != nil {
+		return "", errors.New("could not connect (firewall?)")
 	}
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(30 * time.Second))
-	h, _ := json.Marshal(clipHeader{From: from, Size: len(text)})
-	if _, err := conn.Write(append(append(h, '\n'), text...)); err != nil {
-		return fmt.Errorf("send failed: %v", err)
+	header, _ := json.Marshal(h)
+	if _, err := conn.Write(append(append(header, '\n'), text...)); err != nil {
+		return "", fmt.Errorf("send failed: %v", err)
 	}
 	reply, err := bufio.NewReader(conn).ReadString('\n')
 	if err != nil {
-		return errors.New("no answer from the listener")
+		return "", errors.New("no answer from the listener")
 	}
-	if reply = strings.TrimSpace(reply); reply != "ok" {
-		return errors.New(strings.TrimPrefix(reply, "error: "))
+	return strings.TrimSpace(reply), nil
+}
+
+// heldText shows held text in the listen window, indented and cut at 2,000 characters.
+func heldText(s string) string {
+	const most = 2000
+	r := []rune(strings.TrimRight(s, "\r\n"))
+	more := ""
+	if len(r) > most {
+		more = styleMuted.Render(fmt.Sprintf("\n    … %d more characters", len(r)-most))
+		r = r[:most]
 	}
-	return nil
+	lines := strings.Split(strings.ReplaceAll(string(r), "\r\n", "\n"), "\n")
+	for i, l := range lines {
+		lines[i] = styleMuted.Render("    │ ") + l
+	}
+	return strings.Join(lines, "\n") + more
 }
 
 // localIPs lists this computer's IPv4 addresses on interfaces that are up (no loopback).

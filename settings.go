@@ -48,8 +48,12 @@ func defaultBindings() bindings {
 			"add":  {"a"},
 		},
 		"clients_table": {
-			"send":    {"enter"},
-			"refresh": {"r"},
+			"send":     {"enter"},
+			"refresh":  {"r"},
+			"settings": {"s"},
+		},
+		"client_settings": {
+			"hold": {"space", "enter", "h"},
 		},
 		"editor": {
 			"save":   {"ctrl+s"},
@@ -115,7 +119,7 @@ func writeDefaultSettings() (created bool, err error) {
 	data, _ := json.MarshalIndent(settingsFile{
 		Help: "Key bindings for payload. Each action takes a list of keys, e.g. \"ctrl+s\", \"enter\", \"esc\", " +
 			"\"space\", \"up\", \"pgdown\", \"x\". Remove an action (or this whole file) to use its default keys. " +
-			"Ctrl+C always quits. env_table, curl_table and clients_table only add their own keys (show/hide; run/edit/add; send/refresh); they move, copy and delete with the table keys. update_check: false stops the daily check for new versions. name: what other computers see in their payload clients table (set it with: payload settings set-name).",
+			"Ctrl+C always quits. env_table, curl_table, clients_table and client_settings only add their own keys (show/hide; run/edit/add; send/refresh/settings; hold); they move, copy and delete with the table keys. update_check: false stops the daily check for new versions. name: what other computers see in their payload clients table (set it with: payload settings set-name).",
 		UpdateCheck: &on,
 		Keybinds:    defaultBindings(),
 	}, "", "  ")

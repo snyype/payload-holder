@@ -210,6 +210,7 @@ func TestMain(m *testing.M) {
 	if os.Getenv("PAYLOAD_TEST_MAIN") == "1" {
 		githubWebURL, githubAPIURL = os.Getenv("FAKE_GH"), os.Getenv("FAKE_GH")
 		authInstallWait = 4 * time.Second
+		clipLoopbackOnly = true
 		openBrowser = func(u string) error {
 			au, _ := url.Parse(u)
 			cb := au.Query().Get("redirect_uri")

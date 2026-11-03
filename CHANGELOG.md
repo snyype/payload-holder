@@ -3,6 +3,18 @@
 Every release has a section here; the release build publishes it as the GitHub release notes and
 `payload doctor` shows it under "What's new" before updating. `payload changelog` prints this file.
 
+## v2.4.0 — 2026-11-04
+
+- Every computer now has a **device ID** (`pd-` + 16 hex), made from the operating system's machine ID,
+  so it stays the same across reinstalls. `payload doctor` shows it.
+- **Hold a client's text for approval:** in `payload clients`, press `s` for clipboard settings and
+  toggle a client with space. Their text then shows in your `payload clipboard listen` window but is not
+  copied to your clipboard, and their send reports it as held.
+- The client is told when you flag them (and when you release them) — straight away if they're
+  listening, otherwise the next time payload sees them.
+- `payload clients` shows a THEIR TEXT column (copied / on hold). Clients on older versions show as
+  "copied (old version)" until they update.
+
 ## v2.3.2 — 2026-11-03
 
 - After you approve the login, `payload auth login` opens the page to install the payload GitHub App on

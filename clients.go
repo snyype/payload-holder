@@ -83,12 +83,16 @@ func clientsCmd() {
 				m.status = styleMuted.Render("Nothing sent.")
 				break
 			}
-			if err := clipDeliver(target.IP, clientName(), text); err != nil {
+			if held, err := clipDeliver(target.IP, text); err != nil {
 				m.status = styleErr.Render("✗ could not send to " + target.Name + ": " + err.Error())
+			} else if held != "" {
+				m.status = styleWarn.Render("⏸ " + target.Name + " held it: " + held)
 			} else {
 				m.status = styleOK.Render("✓ Sent "+humanSize(len(text))+" to "+target.Name) +
 					styleMuted.Render(" ("+target.IP+") · it's on their clipboard")
 			}
+		case "settings":
+			clientSettingsCmd(m.rows)
 		case "refresh":
 		default:
 			return // quit
@@ -141,13 +145,25 @@ func clientsHeader(rows []clientRow, page int) string {
 	return s + styleMuted.Render(" · you are "+clientName())
 }
 
+// incomingLabel says what happens to text this client sends you.
+func incomingLabel(p clipPeer, prefs map[string]clientPref) string {
+	switch {
+	case p.ID == "":
+		return "copied (old version)"
+	case prefs[p.ID].Hold:
+		return "on hold"
+	}
+	return "copied"
+}
+
 func renderClientsPage(rows []clientRow, page, selected int) string {
+	prefs := loadClientPrefs()
 	start := page * perPage
 	end := min(start+perPage, len(rows))
 	t := table.New().
 		Border(lipgloss.RoundedBorder()).
 		BorderStyle(lipgloss.NewStyle().Foreground(clientPurple)).
-		Headers("#", "NAME", "IP").
+		Headers("#", "NAME", "IP", "THEIR TEXT").
 		StyleFunc(func(row, col int) lipgloss.Style {
 			s := lipgloss.NewStyle().Padding(0, 1)
 			switch {
@@ -159,6 +175,10 @@ func renderClientsPage(rows []clientRow, page, selected int) string {
 				s = s.Foreground(muted)
 			case col == 2:
 				s = s.Foreground(clientPurple)
+			case col == 3 && row >= 0 && row < len(rows)-start && prefs[rows[start+row].ID].Hold:
+				s = s.Foreground(warning)
+			case col == 3:
+				s = s.Foreground(muted)
 			}
 			if col == 0 {
 				s = s.Align(lipgloss.Right)
@@ -171,7 +191,7 @@ func renderClientsPage(rows []clientRow, page, selected int) string {
 		if r.self {
 			name += " (this computer)"
 		}
-		t.Row(strconv.Itoa(i+1), name, r.IP)
+		t.Row(strconv.Itoa(i+1), name, r.IP, incomingLabel(r.clipPeer, prefs))
 	}
 	return t.Render()
 }
@@ -199,6 +219,11 @@ func rescanClients() tea.Cmd {
 		if err != nil {
 			return clientsScanMsg{rows: nil}
 		}
+		peers := make([]clipPeer, len(rows))
+		for i, r := range rows {
+			peers[i] = r.clipPeer
+		}
+		deliverNotices(peers) // tell clients flagged while they weren't listening
 		return clientsScanMsg{rows: rows}
 	})
 }
@@ -265,6 +290,10 @@ func (m clientsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.action = "refresh"
 		return m, tea.Quit
 	}
+	if pressed(k, "clients_table", "settings") {
+		m.action = "settings"
+		return m, tea.Quit
+	}
 	if len(m.rows) == 0 {
 		return m, nil
 	}
@@ -313,10 +342,10 @@ func (m clientsModel) View() string {
 		return clientsHeader(m.rows, 0) + "\n" +
 			styleWarn.Render("! ") + "No one is listening. Run " + styleCode.Render("payload clipboard listen") + " on the other computers —\n" +
 			"  they'll show up here by themselves.\n" +
-			styleMuted.Render(fmt.Sprintf("  updates every %ds · %s search now · %s quit", int(clientsRescan.Seconds()), c("refresh"), l("quit"))) + "\n" + m.status + "\n"
+			styleMuted.Render(fmt.Sprintf("  updates every %ds · %s search now · %s settings · %s quit", int(clientsRescan.Seconds()), c("refresh"), c("settings"), l("quit"))) + "\n" + m.status + "\n"
 	}
-	help := styleMuted.Render(fmt.Sprintf("%s/%s select · %s send text · updates every %ds · %s search now · %s quit",
-		l("up"), l("down"), c("send"), int(clientsRescan.Seconds()), c("refresh"), l("quit")))
+	help := styleMuted.Render(fmt.Sprintf("%s/%s select · %s send text · %s settings · updates every %ds · %s search now · %s quit",
+		l("up"), l("down"), c("send"), c("settings"), int(clientsRescan.Seconds()), c("refresh"), l("quit")))
 	return clientsHeader(m.rows, m.page) + "\n" +
 		renderClientsPage(m.rows, m.page, m.cursor) + "\n" +
 		"  " + help + "\n" +

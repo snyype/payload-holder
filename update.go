@@ -244,6 +244,9 @@ func doctor(dir string) {
 	// Storage
 	ok("storage", fmt.Sprintf("%s (%d payloads)", dir, len(keys(dir))))
 
+	// Device ID (how other payload clients recognise this computer)
+	ok("device", deviceID()+" · "+clientName())
+
 	// Settings
 	if _, err := os.Stat(settingsPath()); err != nil {
 		ok("settings", "default keys (no "+settingsPath()+")")

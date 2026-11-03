@@ -381,18 +381,19 @@
       <tr><td><code>payload clipboard &lt;text&gt;</code></td><td>Send the text to every listener on the network</td></tr>
       <tr><td><code>payload create_order | payload clipboard</code></td><td>Send piped input — any size up to 16 MB</td></tr>
       <tr><td><code>payload clipboard</code></td><td>Nothing given: send what's on your clipboard now</td></tr>
-      <tr><td><code>payload clients</code></td><td>Send to one person: pick them in a table (↑/↓, <strong>enter</strong>), paste into the text area, <strong>Ctrl+S</strong> sends. The list updates itself every 3 seconds; <code>r</code> searches right away</td></tr>
+      <tr><td><code>payload clients</code></td><td>Send to one person: pick them in a table (↑/↓, <strong>enter</strong>), paste into the text area, <strong>Ctrl+S</strong> sends. The list updates itself every 3 seconds; <code>r</code> searches right away. <code>s</code> opens clipboard settings</td></tr>
       <tr><td><code>payload settings set-name "snype"</code></td><td>The name others see in their table — payload asks for it the first time you run <code>payload clients</code></td></tr>
     </table>
     <pre class="term"><span class="p">$</span> payload clients
 <span class="b"> clients </span>  2 listening · you are snype
 ╭───┬───────────────────────┬──────────────╮
-│ # │ NAME                  │ IP           │
-├───┼───────────────────────┼──────────────┤
-│ 1 │ LAPTOP-K0482585       │ 192.168.1.64 │
-│ 2 │ snype (this computer) │ 192.168.1.65 │
-╰───┴───────────────────────┴──────────────╯
-  ↑/↓ select · enter send text · updates every 3s · r search now · q quit</pre>
+│ # │ NAME                  │ IP           │ THEIR TEXT │
+├───┼───────────────────────┼──────────────┼────────────┤
+│ 1 │ LAPTOP-K0482585       │ 192.168.1.64 │ on hold    │
+│ 2 │ snype (this computer) │ 192.168.1.65 │ copied     │
+╰───┴───────────────────────┴──────────────┴────────────╯
+  ↑/↓ select · enter send text · s settings · updates every 3s · r search now · q quit</pre>
+    <p class="install-note"><strong>Hold a client's text for approval.</strong> Press <code>s</code> in <code>payload clients</code> for clipboard settings, pick a client and press <strong>space</strong>: their text still shows in your <code>listen</code> window but isn't copied to your clipboard, and they're told — <em>"snype flagged you risky — text you send them is on hold until they turn it off"</em> — now, or the next time they listen. Clients are recognised by a <strong>device ID</strong> made from the computer's own machine ID, so it stays the same across reinstalls (<code>payload doctor</code> shows yours).</p>
     <pre class="term"><span class="p">$</span> payload clipboard "http://192.168.1.65:8000"
 Looking for listeners on the network…
 <span class="p">✓</span> DESKTOP-SITA <span class="m">(192.168.1.42)</span>
@@ -482,7 +483,8 @@ go build -o payload.exe .   <span class="c"># or: go build -o payload .</span></
     },
     "env_table": { "reveal": ["v"], "reveal_all": ["V"] },
     "curl_table": { "run": ["enter"], "edit": ["e"], "add": ["a"] },
-    "clients_table": { "send": ["enter"], "refresh": ["r"] },
+    "clients_table": { "send": ["enter"], "refresh": ["r"], "settings": ["s"] },
+    "client_settings": { "hold": ["space", "enter", "h"] },
     "editor": { "save": ["ctrl+s"], "cancel": ["esc"] }
   }
 }</pre>
