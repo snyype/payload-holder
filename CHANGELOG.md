@@ -3,6 +3,11 @@
 Every release has a section here; the release build publishes it as the GitHub release notes and
 `payload doctor` shows it under "What's new" before updating. `payload changelog` prints this file.
 
+## v2.4.1 — 2026-11-04
+
+- The Windows `payload.exe` now has the payload icon (shown in Explorer, the taskbar and file
+  Properties).
+
 ## v2.4.0 — 2026-11-04
 
 - Every computer now has a **device ID** (`pd-` + 16 hex), made from the operating system's machine ID,

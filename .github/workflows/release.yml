@@ -17,12 +17,13 @@ jobs:
         with:
           go-version-file: go.mod
 
-      # Windows file metadata (product name/version), shown in the .exe file Properties.
+      # Windows file metadata (product name/version) and the app icon (assets/icon.png, 256x256),
+      # shown in Explorer, the taskbar and the .exe file Properties.
       - name: Generate Windows version resources
         run: |
           go install github.com/tc-hib/go-winres@latest
           ver="${GITHUB_REF_NAME#v}"; ver="${ver%%-*}.0"
-          "$(go env GOPATH)/bin/go-winres" simply --arch amd64,arm64 --manifest cli \
+          "$(go env GOPATH)/bin/go-winres" simply --arch amd64,arm64 --manifest cli --icon assets/icon.png \
             --product-name payload --product-version "$ver" --file-version "$ver" \
             --file-description "payload - save and retrieve named JSON payloads" \
             --original-filename payload.exe --copyright "Copyright (c) 2026 snyype"
