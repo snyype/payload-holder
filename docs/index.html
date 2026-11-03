@@ -187,6 +187,7 @@
       <a href="#env">Env vault</a>
       <a href="#curl">Curl</a>
       <a href="#clipboard">Clipboard</a>
+      <a href="#ssh">SSH</a>
       <a href="#sync">Sync</a>
       <a href="#customization">Customize</a>
       <a href="#download">Download</a>
@@ -261,6 +262,7 @@
       <tr><td><code>payload table [page]</code></td><td>Browse keys in a table, 10 per page — ←/→ to page, ↑/↓ to select, enter to view, <code>c</code> to copy, <code>d</code> to delete</td></tr>
       <tr><td><code>payload env &lt;sub&gt;</code></td><td>Global values like <code>localUrl</code> or <code>token</code> that payloads use as <code>{{name}}</code> — <code>set</code>, <code>list</code>, <code>drop</code>, <code>table</code>, or a name to print it (<a href="#env">env vault</a>)</td></tr>
       <tr><td><code>payload curl &lt;sub&gt;</code></td><td>Saved curl requests — run one by name with extra flags (<code>payload curl risk -vvk</code>), or <code>set</code>, <code>show</code>, <code>list</code>, <code>drop</code>, <code>table</code> (<a href="#curl">curl requests</a>)</td></tr>
+      <tr><td><code>payload ssh clients</code></td><td>SSH logins in client folders with logos — enter connects, and each password is copied to your clipboard the moment ssh asks (<a href="#ssh">SSH clients</a>)</td></tr>
       <tr><td><code>payload auth login</code></td><td>Log in with GitHub in your browser; the token is stored encrypted (<a href="#sync">sync</a>)</td></tr>
       <tr><td><code>payload sync push | pull</code></td><td>Keep payloads, curl requests and settings the same on every computer through your private GitHub repo (<a href="#sync">sync</a>)</td></tr>
       <tr><td><code>payload clients</code></td><td>Table of everyone listening — pick one, paste text, <strong>Ctrl+S</strong> sends it to just them (<a href="#clipboard">shared clipboard</a>)</td></tr>
@@ -405,6 +407,27 @@ Looking for listeners on the network…
     <p class="install-note">Listeners are found with a broadcast on your local network (UDP and TCP port <code>47321</code>), so there's nothing to configure — but Windows Firewall asks the first time <code>listen</code> runs: allow it on <strong>private</strong> networks. Anyone on the network can send to a computer while it's listening, and text travels unencrypted, so run <code>listen</code> only on networks you trust and stop it when you're done.</p>
   </section>
 
+  <section id="ssh">
+    <h2>SSH clients</h2>
+    <p class="sub">Every server login, in folders per client, one keypress from connecting.</p>
+    <table class="cmds">
+      <tr><td><code>payload ssh clients</code></td><td>The table: <strong>enter</strong> opens a folder or connects, backspace goes back, <code>n</code> new folder, <code>s</code> new ssh login, <code>e</code> edit, <code>p</code> copy password, <code>d</code> delete</td></tr>
+      <tr><td><code>payload ssh GIBL/Acopening/onboarding</code></td><td>Connect straight from the command line (<code>payload ssh list</code> prints the paths)</td></tr>
+      <tr><td><code>payload ssh export</code> / <code>import</code></td><td>Move every client, logo and login to another computer as one <code>.zip</code> — passwords encrypted with your passphrase</td></tr>
+    </table>
+    <pre class="term"><span class="p">$</span> payload ssh GIBL/Acopening/onboarding
+<span class="b">●</span> Opening GIBL/Acopening/onboarding
+<span class="b">●</span> Jump host password saved <span class="m">(env ssh_3fa9c2.jump)</span> — copied to the clipboard when ssh asks for it
+<span class="b">●</span> Server password saved <span class="m">(env ssh_3fa9c2.server)</span> — copied to the clipboard when ssh asks for it
+<span class="b">●</span> Running ssh -J admin@1.2.3.4 root@10.0.0.5 <span class="m">(bundled ssh)</span>
+* Jump host password for GIBL/Acopening/onboarding copied to the clipboard - paste it
+admin@1.2.3.4's password:
+* Password for GIBL/Acopening/onboarding copied to the clipboard - paste it
+root@10.0.0.5's password:</pre>
+    <p class="install-note"><strong>Clients and logos.</strong> <code>n</code> adds a folder; tick <em>Mark as parent</em> for a top-level client and give it an emoji or a <strong>PNG/JPEG logo</strong> — payload draws it right in the terminal with coloured half blocks, small in the table and larger under it. <strong>Logins</strong> (<code>s</code>) take the ssh command, the password and, with <em>Through a jump host</em> ticked, the jump host and its password. Both passwords live in <strong>one</strong> env vault entry bound to the login (<code>ssh_&lt;id&gt;.server</code> and <code>.jump</code>), so nothing needs naming. payload never types a password for you: it puts each one on the clipboard exactly when ssh asks, and clears it when the session ends.</p>
+    <p class="install-note"><strong>Bundled ssh on Windows.</strong> Releases ship Microsoft's OpenSSH for Windows client, checked against the SHA-256 GitHub publishes, at <code>C:\payload\bin\ssh\</code> — not on PATH, kept up to date by <code>payload doctor</code>.</p>
+  </section>
+
   <section id="sync">
     <h2>Sync with GitHub</h2>
     <p class="sub">Your payloads, curl requests and settings on every computer — through a private repo you own.</p>
@@ -485,6 +508,7 @@ go build -o payload.exe .   <span class="c"># or: go build -o payload .</span></
     "curl_table": { "run": ["enter"], "edit": ["e"], "add": ["a"] },
     "clients_table": { "send": ["enter"], "refresh": ["r"], "settings": ["s"] },
     "client_settings": { "hold": ["space", "enter", "h"] },
+    "ssh_table": { "open": ["enter"], "back": ["backspace", "left"], "new_folder": ["n"], "new_login": ["s"], "edit": ["e"], "copy_password": ["p"] },
     "editor": { "save": ["ctrl+s"], "cancel": ["esc"] }
   }
 }</pre>

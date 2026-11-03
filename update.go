@@ -274,6 +274,15 @@ func doctor(dir string) {
 		ok("github", fmt.Sprintf("%s · syncs to %s", a.Login, a.syncRepo()))
 	}
 
+	// ssh (for "payload ssh")
+	if p, source, err := findSSH(); err != nil {
+		bad("ssh", err.Error())
+	} else if source != "bundled" && bundledSSHDir() != "" {
+		bad("ssh", fmt.Sprintf("%s (%s) — no bundled ssh; run: payload ssh install", p, sshVersion(p)))
+	} else {
+		ok("ssh", fmt.Sprintf("%s (%s, %s)", p, source, sshVersion(p)))
+	}
+
 	// Update checks
 	if updateCheckEnabled() {
 		ok("updates", "checked daily")
@@ -380,10 +389,13 @@ func selfUpdate(exe, tag string) error {
 		return err
 	}
 
-	// Bring the bundled curl to the same release; payload works without it, so only warn.
+	// Bring the bundled curl and ssh to the same release; payload works without them, so only warn.
 	if bundledCurlPath() != "" {
 		if err := installBundledCurl(tag); err != nil {
 			warn("Bundled curl not updated: %v", err)
+		}
+		if err := installBundledSSH(tag); err != nil {
+			warn("Bundled ssh not updated: %v", err)
 		}
 	}
 

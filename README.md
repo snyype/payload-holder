@@ -30,6 +30,12 @@ payload curl drop <name>... delete saved curl requests
 payload curl table [page]   browse curl requests (enter run, e edit, a add, c copy, d delete)
 payload curl path           print the curl that payload curl runs (bundled, or the one on PATH)
 payload curl install        download the bundled curl into bin\curl (Windows)
+payload ssh clients         ssh logins in client folders (n folder, s login, enter open/connect, p copy password)
+payload ssh <folder/login>  connect; each password is copied to the clipboard the moment ssh asks for it
+payload ssh list            print every login as folder/login
+payload ssh export [file.zip] [--no-passwords]   all clients, logos and logins in a zip (passwords encrypted)
+payload ssh import <file.zip> [-y]   add or update clients and logins from an export
+payload ssh path | install  the ssh payload runs / download the bundled ssh into bin\ssh (Windows)
 payload clients             pick a listening computer and send it text (enter, paste, Ctrl+S)
 payload clipboard listen    receive text from the network onto your clipboard (Ctrl+C stops)
 payload clipboard [text]    send text (or piped input, or your clipboard) to every listener on the network
@@ -187,6 +193,49 @@ and toggling it off tells them it's released. Holds are saved by device ID under
 "copied (old version)" and can't be held until they update. A device ID is what the other computer
 says it is: it stops casual sending, not a determined attacker on your network.
 
+## SSH clients
+
+Keep ssh logins in folders per client — `GIBL → Acopening → onboarding.ssh` — and connect by picking
+one. `payload ssh clients` opens the table:
+
+```
+ ssh   clients
+╭───┬────────┬──────┬──────────────╮
+│ # │        │ NAME │ DETAILS      │
+├───┼────────┼──────┼──────────────┤
+│ 1 │ ▀▀▀▀▀▀ │ GIBL │ 2 subfolders │   ← a PNG/JPEG logo, drawn in the terminal
+│   │ ▀▀▀▀▀▀ │      │              │
+│ 2 │ 🏦     │ MBL  │ 1 subfolder  │   ← or an emoji
+╰───┴────────┴──────┴──────────────╯
+```
+
+- **enter** opens a folder (backspace goes back) or connects to a login; **n** adds a folder — tick
+  *Mark as parent* for a top-level client and pick its **icon**: an emoji, or **an image file** (PNG or
+  JPEG; payload keeps a small copy in `vault/ssh-logos/` and draws it with coloured half blocks, plus a
+  larger preview of the selected client under the table). Leave it unticked to put the folder inside
+  another one.
+- **s** adds an ssh login in the current folder: its name (shown as `onboarding.ssh`), the ssh command
+  (`ssh root@10.0.0.5`), its **password**, and — when *Through a jump host* is ticked — the jump host
+  (`admin@1.2.3.4`, used as `-J`) and **its password**. A pasted `-J` is picked up too.
+- **Passwords are bound to the login.** They go into the env vault under the login's ID: one entry,
+  `ssh_<id>`, holding both when there's a jump host (`{"server": "…", "jump": "…"}`, shown in
+  `payload env table` as `ssh_<id>.server` and `ssh_<id>.jump`). Deleting the login removes them.
+- **Connecting** (enter, or `payload ssh GIBL/Acopening/onboarding`) runs ssh in your terminal. At each
+  password prompt — the jump host's first, then the server's — payload copies the matching password
+  to the clipboard at that moment and shows the prompt; paste it (right-click or Ctrl+V). Nothing is
+  typed for you. When the session ends, payload clears the password from the clipboard.
+- **e** edits, **p** copies a login's password, **c** its command, **d** deletes (a folder with everything
+  in it). The folders and logins are in `vault/ssh.json`; `payload sync` carries them and the logos.
+- **Export / import.** `payload ssh export` writes a `.zip` with every folder, logo and login (same IDs,
+  so importing on another computer updates rather than duplicates). Passwords are included only
+  **encrypted** with a passphrase you choose (AES-256-GCM, key from PBKDF2-SHA256 with 600,000 rounds);
+  `--no-passwords` leaves them out. `payload ssh import file.zip` shows what it adds (+) and updates (~),
+  asks, and asks for the passphrase. For scripts: `-y`, and the passphrase in `PAYLOAD_SSH_PASSPHRASE`.
+- **Bundled ssh (Windows).** Each release ships Microsoft's OpenSSH for Windows client
+  (`ssh.exe` + `libcrypto.dll`, checked against the SHA-256 GitHub publishes) at `C:\payload\bin\ssh\`,
+  installed and updated like the bundled curl, and not on PATH. Without it payload uses Windows' own
+  ssh; on macOS/Linux the ssh on PATH.
+
 ## Sync with GitHub
 
 Keep payloads, saved curl requests and settings the same on every computer through **one private
@@ -217,8 +266,8 @@ payload sync pull      # on another computer (after payload auth login): downloa
   payload renews it by itself; after about 6 months unused you log in again. `payload auth status` shows
   who you are and checks GitHub accepts the token and the repo is reachable; `payload auth logout`
   deletes the tokens (and prints the GitHub page to revoke them there too).
-- **push** makes the repo match this computer: payloads go to `payloads/<key>.json`, plus `curl.json`
-  and `settings.json`. Each push is a commit, so older versions stay in the repo's history.
+- **push** makes the repo match this computer: payloads go to `payloads/<key>.json`, plus `curl.json`,
+  `ssh.json` (with the client logos in `ssh-logos/`) and `settings.json`. Each push is a commit, so older versions stay in the repo's history.
 - **pull** makes this computer match the repo: it lists what will be added (+), replaced (~) and deleted
   (-), asks first (`-y` skips the question, required when not on a terminal), and copies everything it
   replaces or deletes to `.cache/sync-backup/<time>/` before touching it.
@@ -312,6 +361,14 @@ action out — or deleting the whole file — falls back to the built-in keys. *
     },
     "client_settings": {
       "hold": ["space", "enter", "h"]
+    },
+    "ssh_table": {
+      "open": ["enter"],
+      "back": ["backspace", "left"],
+      "new_folder": ["n"],
+      "new_login": ["s"],
+      "edit": ["e"],
+      "copy_password": ["p"]
     },
     "editor": {
       "save": ["ctrl+s"],

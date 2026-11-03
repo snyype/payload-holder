@@ -52,6 +52,14 @@ func defaultBindings() bindings {
 			"refresh":  {"r"},
 			"settings": {"s"},
 		},
+		"ssh_table": {
+			"open":          {"enter"},
+			"back":          {"backspace", "left"},
+			"new_folder":    {"n"},
+			"new_login":     {"s"},
+			"edit":          {"e"},
+			"copy_password": {"p"},
+		},
 		"client_settings": {
 			"hold": {"space", "enter", "h"},
 		},
@@ -119,7 +127,7 @@ func writeDefaultSettings() (created bool, err error) {
 	data, _ := json.MarshalIndent(settingsFile{
 		Help: "Key bindings for payload. Each action takes a list of keys, e.g. \"ctrl+s\", \"enter\", \"esc\", " +
 			"\"space\", \"up\", \"pgdown\", \"x\". Remove an action (or this whole file) to use its default keys. " +
-			"Ctrl+C always quits. env_table, curl_table, clients_table and client_settings only add their own keys (show/hide; run/edit/add; send/refresh/settings; hold); they move, copy and delete with the table keys. update_check: false stops the daily check for new versions. name: what other computers see in their payload clients table (set it with: payload settings set-name).",
+			"Ctrl+C always quits. env_table, curl_table, clients_table, client_settings and ssh_table only add their own keys (show/hide; run/edit/add; send/refresh/settings; hold); they move, copy and delete with the table keys. update_check: false stops the daily check for new versions. name: what other computers see in their payload clients table (set it with: payload settings set-name).",
 		UpdateCheck: &on,
 		Keybinds:    defaultBindings(),
 	}, "", "  ")
@@ -181,6 +189,11 @@ func setup() {
 		if _, err := os.Stat(p); err != nil {
 			if err := installBundledCurl(version); err != nil {
 				warn("Bundled curl not installed: %v — payload curl uses the curl on PATH", err)
+			}
+		}
+		if !fileExists(filepath.Join(bundledSSHDir(), "ssh.exe")) {
+			if err := installBundledSSH(version); err != nil {
+				warn("Bundled ssh not installed: %v — payload ssh uses Windows' own ssh", err)
 			}
 		}
 	}

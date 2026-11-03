@@ -11,10 +11,13 @@ file. Use it to look up, save, update, copy or delete payloads for the user.
 ├── <key>.json                 one file per saved payload (the file name is the key)
 ├── README.md                  this guide (rewritten by `payload setup`)
 ├── bin/                       the payload binary (on PATH)
-│   └── curl/curl.exe          bundled curl that `payload curl` runs (Windows only; not on PATH)
+│   ├── curl/curl.exe          bundled curl that `payload curl` runs (Windows only; not on PATH)
+│   └── ssh/ssh.exe            bundled OpenSSH client that `payload ssh` runs (Windows only; not on PATH)
 ├── vault/
 │   ├── env.json               env vault: {"name": "value", ...} (plain text)
 │   ├── curl.json              saved curl requests: {"name": "curl ...", ...} (plain text)
+│   ├── ssh.json               ssh client folders and logins (no passwords)
+│   ├── ssh-logos/<id>.png     client logos
 │   └── auth.json              GitHub login for sync (tokens encrypted; never read or copy it)
 └── customization/
     └── settings.json          key-binding overrides (optional)
@@ -48,6 +51,12 @@ cannot be empty, `.` or `..`, or contain any of `/ \ : * ? " < > |`.
 | `payload curl list` | Print saved curl request names, one per line | yes |
 | `payload curl drop <name>...` | Delete saved curl requests after a y/N confirmation | yes, pipe `y` |
 | `payload curl table [page]` | Browse requests: enter run, e edit, a add, c copy, d delete | prints one page when piped |
+| `payload ssh clients` | Table of client folders and ssh logins (n folder, s login, enter connect) | prints a tree when piped |
+| `payload ssh <folder/login>` | Connect; copies each password to the clipboard when ssh prompts — needs the user at the terminal | no — interactive |
+| `payload ssh list` | Print every login as `folder/subfolder/login` | yes |
+| `payload ssh show <path>` | Print a login's ssh command (no passwords) | yes |
+| `payload ssh export [file.zip] [--no-passwords]` | Zip of all folders, logos and logins; passwords encrypted with a passphrase (`PAYLOAD_SSH_PASSPHRASE`) | yes |
+| `payload ssh import <file.zip> -y` | Add/update folders and logins by ID from an export | yes, with `-y` |
 | `payload curl path` | Print the curl `payload curl` runs: the bundled `bin/curl/curl.exe` if present, else the one on PATH | yes |
 | `payload curl install` | Download the bundled curl for this release, verified against SHA256SUMS (Windows only) | yes |
 | `payload clients` | Table of computers running `listen`; enter opens a text area, Ctrl+S sends to that one; `s` opens clipboard settings to hold a client's text for approval. Piped: prints the table | prints the table when piped |
@@ -162,6 +171,15 @@ A held client's text is shown in `payload clipboard listen` but not copied. Devi
 come from the OS machine ID and survive reinstalls. Prefer the settings screen (it also notifies the
 client) over editing this by hand.
 
+## SSH logins
+
+`vault/ssh.json` holds folders (`type: "folder"`, optional emoji `icon` or `logo` file) and logins
+(`type: "ssh"`, `command`, optional `jump` host). A login's passwords are in the env vault under
+`ssh_<id>`: a plain value, or with a jump host a group `{"server": "…", "jump": "…"}` read as
+`ssh_<id>.server` / `ssh_<id>.jump`. Env values can be such groups in general; `payload env <group>.<key>`
+prints one value. Don't print passwords back to the user unless they ask; connecting needs the user at
+the terminal (they paste each password).
+
 ## Sync
 
 `payload sync push` uploads payloads (`payloads/<key>.json`), `vault/curl.json` and
@@ -221,6 +239,14 @@ below. Ctrl+C always quits.
     },
     "client_settings": {
       "hold": ["space", "enter", "h"]
+    },
+    "ssh_table": {
+      "open": ["enter"],
+      "back": ["backspace", "left"],
+      "new_folder": ["n"],
+      "new_login": ["s"],
+      "edit": ["e"],
+      "copy_password": ["p"]
     },
     "editor": {
       "save": ["ctrl+s"],

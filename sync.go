@@ -26,6 +26,8 @@ import (
 const (
 	syncPayloadDir = "payloads/"
 	syncCurl       = "curl.json"
+	syncSSH        = "ssh.json"
+	syncLogoDir    = "ssh-logos/"
 	syncSettings   = "settings.json"
 	syncReadme     = "README.md"
 )
@@ -237,6 +239,20 @@ func localSyncFiles() (map[string][]byte, error) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
+	if data, err := os.ReadFile(sshPath()); err == nil {
+		files[syncSSH] = data
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+	if logos, err := os.ReadDir(sshLogoDir()); err == nil {
+		for _, l := range logos {
+			if validLogoFile(l.Name()) {
+				if data, err := os.ReadFile(sshLogoPath(l.Name())); err == nil {
+					files[syncLogoDir+l.Name()] = data
+				}
+			}
+		}
+	}
 	if data, err := os.ReadFile(settingsPath()); err == nil {
 		files[syncSettings] = withoutName(data)
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -273,6 +289,10 @@ func localPathFor(p string) string {
 	switch {
 	case p == syncCurl:
 		return curlPath()
+	case p == syncSSH:
+		return sshPath()
+	case strings.HasPrefix(p, syncLogoDir) && validLogoFile(strings.TrimPrefix(p, syncLogoDir)):
+		return sshLogoPath(strings.TrimPrefix(p, syncLogoDir))
 	case p == syncSettings:
 		return settingsPath()
 	case strings.HasPrefix(p, syncPayloadDir) && strings.HasSuffix(p, ".json"):
@@ -289,6 +309,10 @@ func describePath(p string) string {
 	switch {
 	case p == syncCurl:
 		return "curl requests"
+	case p == syncSSH:
+		return "ssh logins"
+	case strings.HasPrefix(p, syncLogoDir):
+		return "client logo " + strings.TrimPrefix(p, syncLogoDir)
 	case p == syncSettings:
 		return "settings"
 	case strings.HasPrefix(p, syncPayloadDir):
@@ -572,6 +596,7 @@ This private repo is managed by [payload](https://github.com/snyype/payload-hold
 
 - ` + "`payloads/<key>.json`" + ` — saved payloads
 - ` + "`curl.json`" + ` — saved curl requests
+- ` + "`ssh.json`" + ` — ssh client folders and logins (passwords stay in each computer's env vault)
 - ` + "`settings.json`" + ` — key bindings and options
 
 ` + "`payload sync push`" + ` makes this repo match a computer; ` + "`payload sync pull`" + ` makes a computer match

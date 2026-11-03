@@ -32,20 +32,50 @@ func validEnvName(n string) bool {
 	return validKey(n) && !strings.ContainsAny(n, "{} \t\r\n")
 }
 
-// loadEnv reads the vault; a missing file is an empty vault.
+// The vault maps a name to a value, or to a group of named values — e.g. an ssh login with a jump
+// host keeps both passwords under one name:
+//
+//	{"localUrl": "http://localhost:8000", "gibl_onboarding": {"server": "…", "jump": "…"}}
+//
+// Everything reads it flat: a group's values are "<name>.<key>" (gibl_onboarding.jump), so
+// {{gibl_onboarding.jump}}, payload env gibl_onboarding.jump and the env table work as usual.
+
+// loadEnv reads the vault, flattened; a missing file is an empty vault.
 func loadEnv() (map[string]string, error) {
-	vals := map[string]string{}
+	vals, _, err := loadEnvGroups()
+	return vals, err
+}
+
+// loadEnvGroups is loadEnv plus the set of names that are groups.
+func loadEnvGroups() (map[string]string, map[string]bool, error) {
+	vals, groups := map[string]string{}, map[string]bool{}
 	data, err := os.ReadFile(envPath())
 	if os.IsNotExist(err) {
-		return vals, nil
+		return vals, groups, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if err := json.Unmarshal(data, &vals); err != nil {
-		return nil, fmt.Errorf("%s: %v", envPath(), err)
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, nil, fmt.Errorf("%s: %v", envPath(), err)
 	}
-	return vals, nil
+	for name, r := range raw {
+		var v string
+		if json.Unmarshal(r, &v) == nil {
+			vals[name] = v
+			continue
+		}
+		var g map[string]string
+		if err := json.Unmarshal(r, &g); err != nil {
+			return nil, nil, fmt.Errorf("%s: %q must be a string or an object of strings", envPath(), name)
+		}
+		groups[name] = true
+		for k, v := range g {
+			vals[name+"."+k] = v
+		}
+	}
+	return vals, groups, nil
 }
 
 // mustLoadEnv is loadEnv for commands that can't go on without the vault.
@@ -57,12 +87,49 @@ func mustLoadEnv() map[string]string {
 	return vals
 }
 
-func saveEnv(vals map[string]string) error {
+// saveEnv writes the flat values back: "<group>.<key>" goes inside its group when the group already
+// exists in the vault or is named in newGroups; everything else is a plain value. A plain value
+// with the same name as a group is dropped in favour of the group.
+func saveEnv(vals map[string]string, newGroups ...string) error {
+	_, groups, err := loadEnvGroups()
+	if err != nil {
+		groups = map[string]bool{}
+	}
+	for _, g := range newGroups {
+		groups[g] = true
+	}
+	out := map[string]any{}
+	nested := map[string]map[string]string{}
+	for name, v := range vals {
+		if g, key, ok := strings.Cut(name, "."); ok && groups[g] && key != "" {
+			if nested[g] == nil {
+				nested[g] = map[string]string{}
+			}
+			nested[g][key] = v
+			continue
+		}
+		out[name] = v
+	}
+	for g, m := range nested {
+		out[g] = m // a group without values disappears
+	}
 	if err := os.MkdirAll(filepath.Dir(envPath()), 0o755); err != nil {
 		return err
 	}
-	data, _ := json.MarshalIndent(vals, "", "  ") // map keys come out sorted
+	data, _ := json.MarshalIndent(out, "", "  ") // map keys come out sorted
 	return os.WriteFile(envPath(), append(data, '\n'), 0o600)
+}
+
+// envGroupKeys lists the flat names inside group name ("" if name isn't a group).
+func envGroupKeys(vals map[string]string, name string) []string {
+	var keys []string
+	for k := range vals {
+		if strings.HasPrefix(k, name+".") {
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func envNames(vals map[string]string) []string {
@@ -141,7 +208,11 @@ func envCmd(args []string) {
 }
 
 func envGet(name string) {
-	v, ok := mustLoadEnv()[name]
+	vals := mustLoadEnv()
+	v, ok := vals[name]
+	if keys := envGroupKeys(vals, name); !ok && len(keys) > 0 {
+		fail("%q holds %d values — ask for one: %s", name, len(keys), strings.Join(keys, ", "))
+	}
 	if !ok {
 		fail("%q is not set — run \"payload env list\" to see names, or \"payload env set %s <value>\"", name, name)
 	}
@@ -234,10 +305,15 @@ func envDrop(names []string) {
 			continue
 		}
 		seen[n] = true
-		if _, ok := vals[n]; !ok {
-			fail("%q is not set — run \"payload env list\" to see names", n)
+		if _, ok := vals[n]; ok {
+			targets = append(targets, n)
+			continue
 		}
-		targets = append(targets, n)
+		if keys := envGroupKeys(vals, n); len(keys) > 0 {
+			targets = append(targets, keys...) // the whole group, e.g. both passwords of an ssh login
+			continue
+		}
+		fail("%q is not set — run \"payload env list\" to see names", n)
 	}
 	if !confirm(fmt.Sprintf("Delete %d env value(s)?", len(targets)), strings.Join(targets, ", "), "Delete") {
 		info("Aborted.")

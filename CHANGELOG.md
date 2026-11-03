@@ -3,6 +3,22 @@
 Every release has a section here; the release build publishes it as the GitHub release notes and
 `payload doctor` shows it under "What's new" before updating. `payload changelog` prints this file.
 
+## v2.5.0 — 2026-11-04
+
+- New **`payload ssh clients`**: ssh logins in client folders (e.g. GIBL → Acopening → onboarding.ssh).
+  `n` adds a folder — top-level clients get an emoji or a **PNG/JPEG logo**, drawn in the terminal —
+  `s` adds a login, enter connects, `p` copies its password, `e` edits, `d` deletes.
+- **Passwords on the clipboard, one prompt at a time:** when you connect, payload copies each password
+  the moment ssh asks — the jump host's (`-J`), then the server's — and you paste it. Nothing is typed
+  for you, and the clipboard is cleared when the session ends.
+- A login's passwords are bound to it in the env vault as one entry, `ssh_<id>` — with a jump host a
+  group holding both (`ssh_<id>.server`, `ssh_<id>.jump`). Env values can now be such groups.
+- **`payload ssh export` / `import`:** one zip with every client, logo and login (same IDs), passwords
+  encrypted with a passphrase.
+- Windows releases bundle **Microsoft's OpenSSH client** in `bin\ssh` (checksum-verified, not on PATH);
+  `payload ssh path` / `payload ssh install`, and `payload doctor` shows it.
+- `payload sync` carries ssh folders, logins and logos (passwords stay in each computer's env vault).
+
 ## v2.4.1 — 2026-11-04
 
 - The Windows `payload.exe` now has the payload icon (shown in Explorer, the taskbar and file

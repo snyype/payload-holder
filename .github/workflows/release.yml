@@ -66,12 +66,36 @@ jobs:
           done
           ls -la dist
 
+      # Microsoft's OpenSSH for Windows client (github.com/PowerShell/Win32-OpenSSH), shipped as
+      # ssh_windows_<arch>.zip for "payload ssh" (installed to bin/ssh/). Each zip is checked against
+      # the SHA-256 GitHub publishes for the release asset; only the client files are repackaged.
+      - name: Bundle ssh for Windows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rel="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/PowerShell/Win32-OpenSSH/releases/latest)"
+          echo "OpenSSH for Windows $(echo "$rel" | jq -r .tag_name)"
+          for pair in amd64:OpenSSH-Win64 arm64:OpenSSH-ARM64; do
+            arch="${pair%%:*}"; name="${pair#*:}"
+            url="$(echo "$rel" | jq -r --arg n "$name.zip" '.assets[] | select(.name == $n) | .browser_download_url')"
+            expected="$(echo "$rel" | jq -r --arg n "$name.zip" '.assets[] | select(.name == $n) | .digest' | sed 's/^sha256://')"
+            [ -n "$url" ] && [ -n "$expected" ] && [ "$expected" != null ] || { echo "no $name.zip with a digest"; exit 1; }
+            curl -fsSL -o ssh.zip "$url"
+            actual="$(sha256sum ssh.zip | awk '{print $1}')"
+            echo "$url sha256 $actual"
+            [ "$expected" = "$actual" ] || { echo "ssh checksum mismatch: expected '$expected'"; exit 1; }
+            rm -rf sshpkg && unzip -j -o ssh.zip "$name/ssh.exe" "$name/libcrypto.dll" "$name/LICENSE.txt" "$name/NOTICE.txt" -d sshpkg
+            (cd sshpkg && zip -q -X "../dist/ssh_windows_${arch}.zip" ssh.exe libcrypto.dll LICENSE.txt NOTICE.txt)
+            rm -rf ssh.zip sshpkg
+          done
+          ls -la dist
+
       # SHA-256 of every binary, published with the release; install.sh and "payload doctor" check
       # downloads against it.
       - name: Checksums
         run: |
           cd dist
-          sha256sum payload_* curl_* > SHA256SUMS
+          sha256sum payload_* curl_* ssh_* > SHA256SUMS
           cat SHA256SUMS
 
       # The release notes are this tag's section of CHANGELOG.md ("## vX.Y.Z — date"); "payload doctor"

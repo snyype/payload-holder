@@ -46,6 +46,10 @@ func validKey(k string) bool {
 }
 
 func main() {
+	if os.Getenv(askpassEnv) == "1" && len(os.Args) == 2 {
+		sshAskpass(os.Args[1]) // ssh asking for a password during "payload ssh"
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == holdArg {
 		runClipboardHolder()
 		return
@@ -89,6 +93,8 @@ func main() {
 		envCmd(os.Args[2:])
 	case "curl":
 		curlCmd(os.Args[2:])
+	case "ssh":
+		sshCmd(os.Args[2:])
 	case "auth":
 		authCmd(os.Args[2:])
 	case "sync":
@@ -148,6 +154,12 @@ func usage() {
 		{"payload clients", "pick a listening computer and send it text (enter, then ctrl+s)"},
 		{"payload clipboard listen", "receive text from the network onto your clipboard (Ctrl+C stops)"},
 		{"payload clipboard [text]", "send text (or stdin, or your clipboard) to every listener on the network"},
+		{"payload ssh clients", "ssh logins in client folders (n folder · s login · enter connect)"},
+		{"payload ssh <folder/login>", "connect; each password is copied to the clipboard as ssh asks"},
+		{"payload ssh list", "list ssh logins as folder/login paths"},
+		{"payload ssh export [file.zip]", "all clients, icons and logins in a zip (passwords encrypted)"},
+		{"payload ssh import <file.zip>", "add or update clients and logins from an export"},
+		{"payload ssh path|install", "the ssh payload runs / download the bundled ssh (Windows)"},
 		{"payload auth login", "log in with GitHub (for sync); the token is stored encrypted"},
 		{"payload auth status|logout", "show the login and check it still works / delete it"},
 		{"payload sync push", "make your private <you>/payload-sync repo match this computer"},
