@@ -105,9 +105,7 @@ func TestHoldForApproval(t *testing.T) {
 	if len(loadNotices()) != 0 {
 		t.Fatal("queued notice was not delivered")
 	}
-	if strings.Count(out.String(), "flagged you risky — text you send them") != 2 {
-		t.Fatalf("queued notice not shown:\n%s", out.String())
-	}
+	waitForCount(t, &out, "flagged you risky — text you send them", 2)
 
 	// The toggle is saved in settings.json, keeping the rest of the file.
 	if err := saveClientPref("pd-0000000000000002", clientPref{Name: "x", Hold: true}); err != nil {
@@ -123,9 +121,15 @@ func TestHoldForApproval(t *testing.T) {
 
 func waitFor(t *testing.T, out *lockedBuffer, want string) {
 	t.Helper()
+	waitForCount(t, out, want, 1)
+}
+
+// waitForCount waits until the listener has printed want at least n times.
+func waitForCount(t *testing.T, out *lockedBuffer, want string, n int) {
+	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
-		if strings.Contains(out.String(), want) {
+		if strings.Count(out.String(), want) >= n {
 			return
 		}
 		time.Sleep(50 * time.Millisecond)

@@ -165,8 +165,8 @@ func clipListen() {
 			ip, _, _ := net.SplitHostPort(c.RemoteAddr().String())
 			stamp := styleMuted.Render(time.Now().Format("15:04:05"))
 			from := styleTitle.Render(h.From)
+			// Print first, then answer: when the sender hears back, the message is already on screen.
 			if h.Kind == "notice" {
-				fmt.Fprintln(c, "ok")
 				switch h.Notice {
 				case noticeHold:
 					fmt.Println(stamp + " " + styleWarn.Render("⚑ ") + from + styleMuted.Render(" ("+ip+")") +
@@ -175,13 +175,14 @@ func clipListen() {
 					fmt.Println(stamp + " " + styleOK.Render("✓ ") + from + styleMuted.Render(" ("+ip+")") +
 						" removed the hold — text you send them goes onto their clipboard again")
 				}
+				fmt.Fprintln(c, "ok")
 				return
 			}
 			if isHeld(h.ID) {
-				fmt.Fprintf(c, "held: %s flagged you risky — what you send is on hold until they turn it off\n", clientName())
 				fmt.Println(stamp + " " + styleWarn.Render("⏸ ") + "Held text from " + from +
-					styleMuted.Render(" ("+ip+", "+humanSize(len(body))+") — not copied; on hold for approval"))
-				fmt.Println(heldText(string(body)))
+					styleMuted.Render(" ("+ip+", "+humanSize(len(body))+") — not copied; on hold for approval") +
+					"\n" + heldText(string(body)))
+				fmt.Fprintf(c, "held: %s flagged you risky — what you send is on hold until they turn it off\n", clientName())
 				return
 			}
 			mu.Lock()
@@ -192,9 +193,9 @@ func clipListen() {
 				fmt.Println(stamp + " " + styleErr.Render("✗ ") + fmt.Sprintf("text from %s (%s) could not be copied: %v", h.From, ip, err))
 				return
 			}
-			fmt.Fprintln(c, "ok")
 			fmt.Println(stamp + " " + styleOK.Render("✓ ") + "Copied text from " + from +
 				styleMuted.Render(" ("+ip+", "+humanSize(len(body))+")") + "  " + clipPreview(string(body)))
+			fmt.Fprintln(c, "ok")
 		}(conn)
 	}
 }
