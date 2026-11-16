@@ -30,9 +30,12 @@ payload curl drop <name>... delete saved curl requests
 payload curl table [page]   browse curl requests (enter run, e edit, a add, c copy, d delete)
 payload curl path           print the curl that payload curl runs (bundled, or the one on PATH)
 payload curl install        download the bundled curl into bin\curl (Windows)
-payload ssh clients         ssh logins in client folders (n folder, s login, enter open/connect, p copy password)
-payload ssh <folder/login>  connect; each password is copied to the clipboard the moment ssh asks for it
-payload ssh list            print every login as folder/login
+payload ssh                 fuzzy-search every login as folder/login (type, ↑/↓, enter connect, ctrl+t table)
+payload ssh new             add an ssh login (asks the client folder, name, command, password, jump host)
+payload ssh table           ssh logins in client folders (n folder, s login, enter open/connect, p copy password)
+payload ssh <login|num>     connect (by folder/login path or its number); each password is copied as ssh asks
+payload ssh <login|num> -p  copy that login's password to the clipboard, without connecting
+payload ssh list            print every login as <number> folder/login
 payload ssh export [file.zip] [--no-passwords]   all clients, logos and logins in a zip (passwords encrypted)
 payload ssh import <file.zip> [-y]   add or update clients and logins from an export
 payload ssh path | install  the ssh payload runs / download the bundled ssh into bin\ssh (Windows)
@@ -195,18 +198,31 @@ says it is: it stops casual sending, not a determined attacker on your network.
 
 ## SSH clients
 
-Keep ssh logins in folders per client — `GIBL → Acopening → onboarding.ssh` — and connect by picking
-one. `payload ssh clients` opens the table:
+Keep ssh logins in folders per client — `folder1 → subfolder1 → onboarding.ssh` — and connect by picking
+one. `payload ssh` opens a search list of every login, fzf-style:
+
+```
+ ssh   > folder2/
+  2/3
+▌ 3  🏦 folder2/online-mst01
+  4  🏦 folder2/online-mst02
+```
+
+Each login has a fixed number (shown first) and its client's icon. Type to filter (fuzzy;
+space-separated terms must all match, or type a login's number), ↑/↓ (or ctrl+p/ctrl+n, tab) to
+move — the cursor wraps around — enter to connect, ctrl+t for the table, esc to quit. Logins through
+a jump host show ` - has jump`. `payload ssh new` adds a login; `payload ssh table` (or
+`payload ssh clients`) opens the table:
 
 ```
  ssh   clients
-╭───┬────────┬──────┬──────────────╮
-│ # │        │ NAME │ DETAILS      │
-├───┼────────┼──────┼──────────────┤
-│ 1 │ ▀▀▀▀▀▀ │ GIBL │ 2 subfolders │   ← a PNG/JPEG logo, drawn in the terminal
-│   │ ▀▀▀▀▀▀ │      │              │
-│ 2 │ 🏦     │ MBL  │ 1 subfolder  │   ← or an emoji
-╰───┴────────┴──────┴──────────────╯
+╭───┬────────┬─────────┬──────────────╮
+│ # │        │ NAME    │ DETAILS      │
+├───┼────────┼─────────┼──────────────┤
+│ 1 │ ▀▀▀▀▀▀ │ folder1 │ 2 subfolders │   ← a PNG/JPEG logo, drawn in the terminal
+│   │ ▀▀▀▀▀▀ │         │              │
+│ 2 │ 🏦     │ folder2 │ 1 subfolder  │   ← or an emoji
+╰───┴────────┴─────────┴──────────────╯
 ```
 
 - **enter** opens a folder (backspace goes back) or connects to a login; **n** adds a folder — tick
@@ -220,7 +236,7 @@ one. `payload ssh clients` opens the table:
 - **Passwords are bound to the login.** They go into the env vault under the login's ID: one entry,
   `ssh_<id>`, holding both when there's a jump host (`{"server": "…", "jump": "…"}`, shown in
   `payload env table` as `ssh_<id>.server` and `ssh_<id>.jump`). Deleting the login removes them.
-- **Connecting** (enter, or `payload ssh GIBL/Acopening/onboarding`) runs ssh in your terminal. At each
+- **Connecting** (enter, or `payload ssh folder1/subfolder1/onboarding`) runs ssh in your terminal. At each
   password prompt — the jump host's first, then the server's — payload copies the matching password
   to the clipboard at that moment and shows the prompt; paste it (right-click or Ctrl+V). Nothing is
   typed for you. When the session ends, payload clears the password from the clipboard.

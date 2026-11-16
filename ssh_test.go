@@ -171,8 +171,8 @@ func TestSSHStoreAndLogos(t *testing.T) {
 	f, _ := os.Open(sshLogoPath(file))
 	cfg, _ := png.DecodeConfig(f)
 	f.Close()
-	if cfg.Width != logoStoreSize || cfg.Height != logoStoreSize/2 {
-		t.Errorf("stored logo is %dx%d, want %dx%d (shape kept)", cfg.Width, cfg.Height, logoStoreSize, logoStoreSize/2)
+	if want := min(80, logoStoreSize); cfg.Width != want || cfg.Height != want/2 {
+		t.Errorf("stored logo is %dx%d, want %dx%d (shape kept)", cfg.Width, cfg.Height, want, want/2)
 	}
 	lines := logoLines(file, 6, 3)
 	if len(lines) != 3 || !strings.Contains(strings.Join(lines, ""), "▀") {
@@ -185,26 +185,26 @@ func TestSSHStoreAndLogos(t *testing.T) {
 	}
 
 	s := &sshStore{Nodes: []sshNode{
-		{ID: "a1b2c3", Type: sshFolder, Name: "GIBL", Logo: file},
-		{ID: "b1b2b3", Type: sshFolder, Name: "Acopening", Parent: "a1b2c3"},
+		{ID: "a1b2c3", Type: sshFolder, Name: "folder1", Logo: file},
+		{ID: "b1b2b3", Type: sshFolder, Name: "subfolder1", Parent: "a1b2c3"},
 		{ID: "c1c2c3", Type: sshLogin, Name: "onboarding", Parent: "b1b2b3", Command: "ssh root@db"},
-		{ID: "d1d2d3", Type: sshFolder, Name: "MBL", Icon: "🏦"},
+		{ID: "d1d2d3", Type: sshFolder, Name: "folder2", Icon: "🏦"},
 	}}
-	if got := s.path("c1c2c3"); got != "GIBL/Acopening/onboarding" {
+	if got := s.path("c1c2c3"); got != "folder1/subfolder1/onboarding" {
 		t.Errorf("path = %q", got)
 	}
-	if n := s.find("gibl/acopening/onboarding.ssh"); n == nil || n.ID != "c1c2c3" {
+	if n := s.find("folder1/subfolder1/onboarding.ssh"); n == nil || n.ID != "c1c2c3" {
 		t.Error("find by path failed")
 	}
 	if got := s.summary("a1b2c3"); got != "1 subfolder" {
 		t.Errorf("summary = %q", got)
 	}
-	if kids := s.children(""); len(kids) != 2 || kids[0].Name != "GIBL" {
+	if kids := s.children(""); len(kids) != 2 || kids[0].Name != "folder1" {
 		t.Errorf("top level = %v", kids)
 	}
 	s.remove("a1b2c3")
-	if len(s.Nodes) != 1 || s.Nodes[0].Name != "MBL" {
-		t.Errorf("after removing GIBL: %v", s.Nodes)
+	if len(s.Nodes) != 1 || s.Nodes[0].Name != "folder2" {
+		t.Errorf("after removing folder1: %v", s.Nodes)
 	}
 	if fileExists(sshLogoPath(file)) {
 		t.Error("deleted client's logo file was kept")
@@ -219,7 +219,7 @@ func TestSSHExportImport(t *testing.T) {
 	testLogo(t, src)
 	logo, _ := importLogo(src, "a1b2c3")
 	s := &sshStore{Nodes: []sshNode{
-		{ID: "a1b2c3", Type: sshFolder, Name: "GIBL", Logo: logo},
+		{ID: "a1b2c3", Type: sshFolder, Name: "folder1", Logo: logo},
 		{ID: "c1c2c3", Type: sshLogin, Name: "onboarding", Parent: "a1b2c3", Command: "ssh root@db", Jump: "j@h"},
 	}}
 	if err := s.save(); err != nil {
@@ -253,17 +253,17 @@ func TestSSHExportImport(t *testing.T) {
 		}
 	}
 
-	// Another computer: empty, plus an unrelated "GIBL" that clashes by name only.
+	// Another computer: empty, plus an unrelated "folder1" that clashes by name only.
 	other := t.TempDir()
 	t.Setenv("PAYLOAD_STORE", other)
-	clash := &sshStore{Nodes: []sshNode{{ID: "ffffff", Type: sshFolder, Name: "GIBL", Icon: "🏢"}}}
+	clash := &sshStore{Nodes: []sshNode{{ID: "ffffff", Type: sshFolder, Name: "folder1", Icon: "🏢"}}}
 	_ = clash.save()
 	sshImportCmd([]string{zipPath, "-y"})
 	got := mustLoadSSH()
 	if n := got.get("c1c2c3"); n == nil || n.Command != "ssh root@db" || n.Jump != "j@h" {
 		t.Fatalf("imported login: %+v", n)
 	}
-	if n := got.get("a1b2c3"); n == nil || n.Name != "GIBL-2" || n.Logo != logo || !fileExists(sshLogoPath(logo)) {
+	if n := got.get("a1b2c3"); n == nil || n.Name != "folder1-2" || n.Logo != logo || !fileExists(sshLogoPath(logo)) {
 		t.Errorf("imported folder: %+v (logo file %v)", n, fileExists(sshLogoPath(logo)))
 	}
 	env, _ := loadEnv()

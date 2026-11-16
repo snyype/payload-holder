@@ -80,7 +80,7 @@ func sshAskpass(prompt string) {
 				fmt.Fprintf(out, "! could not copy {{%s}}: %v\n", name, err)
 			}
 		} else {
-			fmt.Fprintf(out, "! %s isn't saved (add it with e in payload ssh clients) - type it\n", what)
+			fmt.Fprintf(out, "! %s isn't saved (add it with e in payload ssh table) - type it\n", what)
 		}
 	}
 	fmt.Fprint(out, prompt)

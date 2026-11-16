@@ -35,10 +35,10 @@ func validEnvName(n string) bool {
 // The vault maps a name to a value, or to a group of named values — e.g. an ssh login with a jump
 // host keeps both passwords under one name:
 //
-//	{"localUrl": "http://localhost:8000", "gibl_onboarding": {"server": "…", "jump": "…"}}
+//	{"localUrl": "http://localhost:8000", "folder1_onboarding": {"server": "…", "jump": "…"}}
 //
-// Everything reads it flat: a group's values are "<name>.<key>" (gibl_onboarding.jump), so
-// {{gibl_onboarding.jump}}, payload env gibl_onboarding.jump and the env table work as usual.
+// Everything reads it flat: a group's values are "<name>.<key>" (folder1_onboarding.jump), so
+// {{folder1_onboarding.jump}}, payload env folder1_onboarding.jump and the env table work as usual.
 
 // loadEnv reads the vault, flattened; a missing file is an empty vault.
 func loadEnv() (map[string]string, error) {

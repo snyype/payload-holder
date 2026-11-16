@@ -9,10 +9,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/lipgloss/table"
 )
 
-// payload ssh clients: folders (clients such as GIBL → Acopening) and ssh logins in a table.
+// payload ssh table: folders (clients such as folder1 → subfolder1) and ssh logins in a table.
 // enter opens a folder or connects to a login, backspace goes up, n adds a folder, s adds a login,
 // e edits, p copies a login's password, c copies its command, d deletes.
 
@@ -230,51 +229,43 @@ func (m sshTableModel) View() string {
 	b.WriteString(styleSSHBadge.Render("ssh") + "  " + styleTitle.Render(m.breadcrumb()) + "\n")
 	if len(m.rows) == 0 {
 		if m.folder == "" {
-			b.WriteString(styleMuted.Render("  No clients yet. Press n to add one (e.g. GIBL), then s inside it to add an ssh login.") + "\n")
+			b.WriteString(styleMuted.Render("  No clients yet. Press n to add one (e.g. folder1), then s inside it to add an ssh login.") + "\n")
 		} else {
 			b.WriteString(styleMuted.Render("  Empty folder. n adds a subfolder, s adds an ssh login here.") + "\n")
 		}
 	} else {
+		// One line per entry: marker, icon (a logo is drawn 2 cells × 1 line, like an emoji), the
+		// name, then what's inside a folder or where a login goes. Names line up in one column.
 		env, _ := loadEnv()
-		t := table.New().
-			Border(lipgloss.RoundedBorder()).
-			BorderStyle(lipgloss.NewStyle().Foreground(sshCyan)).
-			Headers("#", "", "NAME", "DETAILS").
-			StyleFunc(func(row, col int) lipgloss.Style {
-				s := lipgloss.NewStyle().Padding(0, 1)
-				switch {
-				case row == table.HeaderRow:
-					return s.Bold(true).Foreground(sshCyan)
-				case col == 1:
-					return s // the logo keeps its own colours
-				case row == m.cursor:
-					return s.Bold(true).Foreground(lipgloss.Color("#042F2E")).Background(lipgloss.Color("#67E8F9"))
-				case col == 0 || col == 3:
-					return s.Foreground(muted)
-				}
-				return s
-			})
+		hl := lipgloss.NewStyle().Foreground(sshCyan).Bold(true)
+		names := make([]string, len(m.rows))
+		nameW, numW := 0, 1
 		for i, n := range m.rows {
+			names[i] = n.Name
 			if n.Type == sshFolder {
-				t.Row(strconv.Itoa(i+1), folderIcon(n), n.Name, m.store.summary(n.ID))
-				continue
+				names[i] += "/"
+			} else {
+				names[i] += ".ssh"
+				numW = max(numW, len(strconv.Itoa(n.Num)))
 			}
-			t.Row(strconv.Itoa(i+1), sshLoginIcon, n.Name+".ssh", loginDetails(n, env))
+			nameW = max(nameW, lipgloss.Width(names[i]))
 		}
-		b.WriteString(t.Render() + "\n")
-		if sel := m.rows[m.cursor]; sel.Type == sshFolder && sel.Logo != "" {
-			if lines := logoLines(sel.Logo, 24, 12); lines != nil {
-				for i, l := range lines {
-					label := ""
-					if i == 5 {
-						label = "   " + styleTitle.Render(sel.Name)
-					} else if i == 6 {
-						label = "   " + styleMuted.Render(m.store.summary(sel.ID))
-					}
-					b.WriteString("  " + l + label + "\n")
-				}
+		b.WriteString("\n")
+		for i, n := range m.rows {
+			marker, name := "  ", names[i]
+			if i == m.cursor {
+				marker, name = hl.Render("▌ "), hl.Render(name)
 			}
+			pad := strings.Repeat(" ", nameW-lipgloss.Width(names[i]))
+			num, icon, details := strings.Repeat(" ", numW), sshLoginIcon, ""
+			if n.Type == sshFolder {
+				icon, details = folderIcon(n), m.store.summary(n.ID)
+			} else {
+				num, details = fmt.Sprintf("%*d", numW, n.Num), loginDetails(n, env)
+			}
+			b.WriteString(marker + styleMuted.Render(num) + "  " + icon + " " + name + pad + "   " + styleMuted.Render(details) + "\n")
 		}
+		b.WriteString("\n")
 	}
 	l := func(a string) string { return keyLabel("table", a) }
 	c := func(a string) string { return keyLabel("ssh_table", a) }
@@ -351,20 +342,20 @@ func sshFolderForm(s *sshStore, edit *sshNode, parent string) string {
 	}
 	groups := []*huh.Group{
 		huh.NewGroup(
-			huh.NewInput().Title(title).Description("Folder name, e.g. GIBL or Acopening").Value(&name).
+			huh.NewInput().Title(title).Description("Folder name, e.g. folder1 or subfolder1").Value(&name).
 				Validate(func(v string) error { return sshNameError(strings.TrimSpace(v)) }),
 			huh.NewConfirm().Title("Mark as parent (top-level client)?").
-				Description("A parent shows on the first page of payload ssh clients, with its icon.").
+				Description("A parent shows on the first page of payload ssh table, with its icon.").
 				Affirmative("Parent").Negative("Inside another folder").Value(&top),
 		),
 		huh.NewGroup(
-			huh.NewSelect[string]().Title("Icon").Description("Shown next to the client in payload ssh clients").
+			huh.NewSelect[string]().Title("Icon").Description("Shown next to the client in payload ssh table").
 				Options(iconOpts...).Value(&icon),
 		).WithHideFunc(func() bool { return !top }),
 		huh.NewGroup(
 			huh.NewInput().Title("Logo image").
 				DescriptionFunc(func() string {
-					d := "Path of a PNG or JPEG, e.g. D:\\logos\\gibl.png — payload keeps a small copy"
+					d := "Path of a PNG or JPEG, e.g. D:\\logos\\logo.png — payload keeps a small copy"
 					if keepLogo {
 						d += " · leave empty to keep the current logo"
 					}
@@ -590,11 +581,12 @@ func dropEnvEntries(names []string) {
 	_ = saveEnv(vals)
 }
 
-// folderIcon is what the table shows for a folder: its logo (3 lines), its emoji, or a plain folder.
+// folderIcon is what the table shows for a folder: its logo (2 cells × 1 line, the size of an emoji
+// so every row is one line), its emoji, or a plain folder.
 func folderIcon(n sshNode) string {
 	if n.Logo != "" {
-		if lines := logoLines(n.Logo, 6, 3); lines != nil {
-			return strings.Join(lines, "\n")
+		if lines := logoLines(n.Logo, 2, 1); lines != nil {
+			return lines[0]
 		}
 	}
 	return firstNonEmpty(n.Icon, "📁")

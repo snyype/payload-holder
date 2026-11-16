@@ -412,17 +412,17 @@ Looking for listeners on the network…
     <p class="sub">Every server login, in folders per client, one keypress from connecting.</p>
     <table class="cmds">
       <tr><td><code>payload ssh clients</code></td><td>The table: <strong>enter</strong> opens a folder or connects, backspace goes back, <code>n</code> new folder, <code>s</code> new ssh login, <code>e</code> edit, <code>p</code> copy password, <code>d</code> delete</td></tr>
-      <tr><td><code>payload ssh GIBL/Acopening/onboarding</code></td><td>Connect straight from the command line (<code>payload ssh list</code> prints the paths)</td></tr>
+      <tr><td><code>payload ssh folder1/subfolder1/onboarding</code></td><td>Connect straight from the command line (<code>payload ssh list</code> prints the paths)</td></tr>
       <tr><td><code>payload ssh export</code> / <code>import</code></td><td>Move every client, logo and login to another computer as one <code>.zip</code> — passwords encrypted with your passphrase</td></tr>
     </table>
-    <pre class="term"><span class="p">$</span> payload ssh GIBL/Acopening/onboarding
-<span class="b">●</span> Opening GIBL/Acopening/onboarding
+    <pre class="term"><span class="p">$</span> payload ssh folder1/subfolder1/onboarding
+<span class="b">●</span> Opening folder1/subfolder1/onboarding
 <span class="b">●</span> Jump host password saved <span class="m">(env ssh_3fa9c2.jump)</span> — copied to the clipboard when ssh asks for it
 <span class="b">●</span> Server password saved <span class="m">(env ssh_3fa9c2.server)</span> — copied to the clipboard when ssh asks for it
 <span class="b">●</span> Running ssh -J admin@1.2.3.4 root@10.0.0.5 <span class="m">(bundled ssh)</span>
-* Jump host password for GIBL/Acopening/onboarding copied to the clipboard - paste it
+* Jump host password for folder1/subfolder1/onboarding copied to the clipboard - paste it
 admin@1.2.3.4's password:
-* Password for GIBL/Acopening/onboarding copied to the clipboard - paste it
+* Password for folder1/subfolder1/onboarding copied to the clipboard - paste it
 root@10.0.0.5's password:</pre>
     <p class="install-note"><strong>Clients and logos.</strong> <code>n</code> adds a folder; tick <em>Mark as parent</em> for a top-level client and give it an emoji or a <strong>PNG/JPEG logo</strong> — payload draws it right in the terminal with coloured half blocks, small in the table and larger under it. <strong>Logins</strong> (<code>s</code>) take the ssh command, the password and, with <em>Through a jump host</em> ticked, the jump host and its password. Both passwords live in <strong>one</strong> env vault entry bound to the login (<code>ssh_&lt;id&gt;.server</code> and <code>.jump</code>), so nothing needs naming. payload never types a password for you: it puts each one on the clipboard exactly when ssh asks, and clears it when the session ends.</p>
     <p class="install-note"><strong>Bundled ssh on Windows.</strong> Releases ship Microsoft's OpenSSH for Windows client, checked against the SHA-256 GitHub publishes, at <code>C:\payload\bin\ssh\</code> — not on PATH, kept up to date by <code>payload doctor</code>.</p>

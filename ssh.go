@@ -8,18 +8,20 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/atotto/clipboard"
 )
 
-// payload ssh: saved ssh logins in folders. Folders ("clients", e.g. GIBL → Acopening) nest; a login
+// payload ssh: saved ssh logins in folders. Folders ("clients", e.g. folder1 → subfolder1) nest; a login
 // (shown as onboarding.ssh) is an ssh command plus the env vault names of its passwords. Opening a
 // login copies its password to the clipboard and runs ssh — nothing is typed for you. Stored in
 // vault/ssh.json (no passwords: those stay in the env vault).
 
 type sshNode struct {
 	ID     string `json:"id"`
+	Num    int    `json:"num,omitempty"`    // ssh logins: 1, 2, 3… in creation order (folders have none) — payload ssh <num>
 	Parent string `json:"parent,omitempty"` // "" for a top-level folder
 	Type   string `json:"type"`             // "folder" or "ssh"
 	Name   string `json:"name"`
@@ -125,7 +127,60 @@ func loadSSH() (*sshStore, error) {
 	if err := json.Unmarshal(data, s); err != nil {
 		return nil, fmt.Errorf("%s: %v", sshPath(), err)
 	}
+	if s.numberLogins() {
+		_ = s.save() // logins saved before numbers existed get theirs once, in file order
+	}
 	return s, nil
+}
+
+// numberLogins gives every ssh login a unique number: kept once given, new ones (or a clash, e.g.
+// after an import) get the next after the highest. Folders get none. It reports whether it changed
+// anything.
+func (s *sshStore) numberLogins() bool {
+	top := 0
+	for _, n := range s.Nodes {
+		if n.Type == sshLogin {
+			top = max(top, n.Num)
+		}
+	}
+	changed, seen := false, map[int]bool{}
+	for i := range s.Nodes {
+		n := &s.Nodes[i]
+		switch {
+		case n.Type != sshLogin:
+			if n.Num != 0 {
+				n.Num, changed = 0, true
+			}
+		case n.Num <= 0 || seen[n.Num]:
+			top++
+			n.Num, changed = top, true
+			seen[n.Num] = true
+		default:
+			seen[n.Num] = true
+		}
+	}
+	return changed
+}
+
+// byNum finds a login by its number.
+func (s *sshStore) byNum(num int) *sshNode {
+	for i := range s.Nodes {
+		if s.Nodes[i].Type == sshLogin && s.Nodes[i].Num == num {
+			return &s.Nodes[i]
+		}
+	}
+	return nil
+}
+
+// findLogin resolves what was typed after payload ssh: a folder/login path, or a login's number.
+func (s *sshStore) findLogin(arg string) *sshNode {
+	if n := s.find(arg); n != nil {
+		return n
+	}
+	if num, err := strconv.Atoi(strings.TrimPrefix(arg, "#")); err == nil {
+		return s.byNum(num)
+	}
+	return nil
 }
 
 func mustLoadSSH() *sshStore {
@@ -137,6 +192,7 @@ func mustLoadSSH() *sshStore {
 }
 
 func (s *sshStore) save() error {
+	s.numberLogins()
 	if err := os.MkdirAll(filepath.Dir(sshPath()), 0o755); err != nil {
 		return err
 	}
@@ -170,7 +226,7 @@ func (s *sshStore) children(parent string) []sshNode {
 	return out
 }
 
-// path is a node's location, e.g. GIBL/Acopening/onboarding.
+// path is a node's location, e.g. folder1/subfolder1/onboarding.
 func (s *sshStore) path(id string) string {
 	var parts []string
 	for n := s.get(id); n != nil; n = s.get(n.Parent) {
@@ -182,7 +238,7 @@ func (s *sshStore) path(id string) string {
 	return strings.Join(parts, "/")
 }
 
-// find resolves a path like GIBL/Acopening/onboarding (a trailing .ssh is allowed).
+// find resolves a path like folder1/subfolder1/onboarding (a trailing .ssh is allowed).
 func (s *sshStore) find(path string) *sshNode {
 	parent := ""
 	var node *sshNode
@@ -393,7 +449,7 @@ func sshConnect(s *sshStore, n *sshNode, extra []string) {
 		v, ok := env[name]
 		switch {
 		case !ok:
-			sshStep("%s %s isn't saved — type it when ssh asks (or add it with e in payload ssh clients)", styleWarn.Render("!"), what)
+			sshStep("%s %s isn't saved — type it when ssh asks (or add it with e in payload ssh table)", styleWarn.Render("!"), what)
 		default:
 			sshStep("%s saved %s — copied to the clipboard when ssh asks for it", what, styleMuted.Render("(env "+name+")"))
 		}
@@ -450,8 +506,12 @@ func sshCmd(args []string) {
 		sub = args[0]
 	}
 	switch sub {
-	case "", "clients", "table":
+	case "":
+		sshPickCmd()
+	case "table", "clients":
 		sshTableCmd()
+	case "new", "add":
+		sshNewCmd()
 	case "export":
 		sshExportCmd(args[1:])
 	case "import":
@@ -462,36 +522,47 @@ func sshCmd(args []string) {
 		sshInstallCmd()
 	case "list":
 		s := mustLoadSSH()
-		var paths []string
+		var logins []sshNode
 		for _, n := range s.Nodes {
 			if n.Type == sshLogin {
-				paths = append(paths, s.path(n.ID))
+				logins = append(logins, n)
 			}
 		}
-		sort.Strings(paths)
-		for _, p := range paths {
-			fmt.Println(p)
+		sort.Slice(logins, func(i, j int) bool { return logins[i].Num < logins[j].Num })
+		for _, n := range logins {
+			fmt.Printf("%d\t%s\n", n.Num, s.path(n.ID))
 		}
 	case "show":
 		if len(args) != 2 {
 			fail("usage: payload ssh show <folder/login>")
 		}
 		s := mustLoadSSH()
-		n := s.find(args[1])
+		n := s.findLogin(args[1])
 		if n == nil || n.Type != sshLogin {
 			fail("no ssh login %q — run payload ssh list", args[1])
 		}
 		args, _ := n.args()
 		fmt.Println("ssh " + quoteWords(args))
+		info("#%d %s", n.Num, s.path(n.ID))
 		info("passwords: env vault %s", n.envName())
 	default:
 		s := mustLoadSSH()
-		n := s.find(sub)
+		n := s.findLogin(sub)
 		switch {
 		case n == nil:
-			fail("no ssh login %q — run payload ssh list, or payload ssh clients", sub)
+			fail("no ssh login %q — run payload ssh list, or payload ssh table", sub)
 		case n.Type == sshFolder:
 			fail("%s is a folder — give a login inside it, e.g. %s/<name> (payload ssh list)", sub, strings.Trim(sub, "/"))
+		}
+		// payload ssh <login> -p copies the login's password instead of connecting. (-p with a value,
+		// e.g. -p 2222, is still ssh's port option.)
+		if len(args) == 2 && (args[1] == "-p" || args[1] == "--password") {
+			msg := copyLoginPassword(*n)
+			fmt.Println(msg + styleMuted.Render(fmt.Sprintf("  (#%d %s)", n.Num, s.path(n.ID))))
+			if !strings.Contains(msg, "✓") {
+				os.Exit(1)
+			}
+			return
 		}
 		sshConnect(s, n, args[1:])
 	}

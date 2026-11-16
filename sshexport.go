@@ -160,7 +160,7 @@ func sshExportCmd(args []string) {
 		}
 	}
 	if len(s.Nodes) == 0 {
-		fail("nothing to export — add clients with payload ssh clients")
+		fail("nothing to export — add clients with payload ssh table")
 	}
 
 	// The logins' env vault entries.
@@ -300,9 +300,11 @@ func sshImportCmd(args []string) {
 	}
 	for _, n := range in.Nodes {
 		if i, ok := byID[n.ID]; ok {
+			n.Num = s.Nodes[i].Num // a login keeps its number on this computer
 			s.Nodes[i] = n
 			updated = append(updated, n.ID)
 		} else {
+			n.Num = 0 // numbered after the logins already here, when saved
 			s.Nodes = append(s.Nodes, n)
 			byID[n.ID] = len(s.Nodes) - 1
 			added = append(added, n.ID)

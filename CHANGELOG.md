@@ -5,7 +5,7 @@ Every release has a section here; the release build publishes it as the GitHub r
 
 ## v2.5.0 — 2026-11-04
 
-- New **`payload ssh clients`**: ssh logins in client folders (e.g. GIBL → Acopening → onboarding.ssh).
+- New **`payload ssh clients`**: ssh logins in client folders (e.g. folder1 → subfolder1 → onboarding.ssh).
   `n` adds a folder — top-level clients get an emoji or a **PNG/JPEG logo**, drawn in the terminal —
   `s` adds a login, enter connects, `p` copies its password, `e` edits, `d` deletes.
 - **Passwords on the clipboard, one prompt at a time:** when you connect, payload copies each password
