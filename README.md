@@ -32,7 +32,7 @@ payload curl path           print the curl that payload curl runs (bundled, or t
 payload curl install        download the bundled curl into bin\curl (Windows)
 payload ssh                 fuzzy-search every login as folder/login (type, ↑/↓, enter connect, ctrl+t table)
 payload ssh new             add an ssh login (asks the client folder, name, command, password, jump host)
-payload ssh table           ssh logins in client folders (n folder, s login, enter open/connect, p copy password)
+payload ssh table           ssh logins in client folders (n folder, s login, enter open/connect, p copy password, j jumpable)
 payload ssh <login|num>     connect (by folder/login path or its number); each password is copied as ssh asks
 payload ssh <login|num> -p  copy that login's password to the clipboard, without connecting
 payload ssh list            print every login as <number> folder/login
@@ -211,7 +211,9 @@ one. `payload ssh` opens a search list of every login, fzf-style:
 Each login has a fixed number (shown first) and its client's icon. Type to filter (fuzzy;
 space-separated terms must all match, or type a login's number), ↑/↓ (or ctrl+p/ctrl+n, tab) to
 move — the cursor wraps around — enter to connect, ctrl+t for the table, esc to quit. Logins through
-a jump host show ` - has jump`. `payload ssh new` adds a login; `payload ssh table` (or
+a jump host show ` - has jump`. Each row also shows its ssh command, dimmed (`/ ssh root@10.0.0.5`);
+**ctrl+o** hides or shows it, and payload remembers the choice (`ssh_show_command` in
+`settings.json`; the key is `ssh_pick.toggle_command`). `payload ssh new` adds a login; `payload ssh table` (or
 `payload ssh clients`) opens the table:
 
 ```
@@ -245,7 +247,7 @@ a jump host show ` - has jump`. `payload ssh new` adds a login; `payload ssh tab
   password prompt — the jump host's first, then the server's — payload copies the matching password
   to the clipboard at that moment and shows the prompt; paste it (right-click or Ctrl+V). Nothing is
   typed for you. When the session ends, payload clears the password from the clipboard.
-- **e** edits, **p** copies a login's password, **c** its command, **d** deletes (a folder with everything
+- **e** edits, **p** copies a login's password, **j** marks it jumpable (or not), **c** its command, **d** deletes (a folder with everything
   in it). The folders and logins are in `vault/ssh.json`; `payload sync` carries them and the logos.
 - **Export / import.** `payload ssh export` writes a `.zip` with every folder, logo and login (same IDs,
   so importing on another computer updates rather than duplicates). Passwords are included only

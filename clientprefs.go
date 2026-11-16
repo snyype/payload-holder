@@ -141,3 +141,25 @@ func deliverNotices(peers []clipPeer) {
 		saveNotices(pending)
 	}
 }
+
+// saveSetting stores one top-level value in settings.json (e.g. "ssh_show_command": false), keeping
+// everything else as it is.
+func saveSetting(key string, value any) error {
+	prefsMu.Lock()
+	defer prefsMu.Unlock()
+	if _, err := writeDefaultSettings(); err != nil {
+		return err
+	}
+	data, err := os.ReadFile(settingsPath())
+	if err != nil {
+		return err
+	}
+	var f map[string]json.RawMessage
+	if err := json.Unmarshal(data, &f); err != nil {
+		return err
+	}
+	if f[key], err = json.Marshal(value); err != nil {
+		return err
+	}
+	return os.WriteFile(settingsPath(), encodeSettings(f), 0o644)
+}

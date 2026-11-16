@@ -170,6 +170,8 @@ func (m sshTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.confirmDrop = m.rows[m.cursor].ID
 	case pressed(k, "ssh_table", "copy_password"):
 		m.status = copyLoginPassword(m.rows[m.cursor])
+	case pressed(k, "ssh_table", "toggle_jumpable"):
+		m.status = m.toggleJumpable()
 	case pressed(k, "table", "copy"):
 		r := m.rows[m.cursor]
 		if r.Type == sshLogin {
@@ -270,8 +272,8 @@ func (m sshTableModel) View() string {
 	}
 	l := func(a string) string { return keyLabel("table", a) }
 	c := func(a string) string { return keyLabel("ssh_table", a) }
-	help := fmt.Sprintf("%s open/connect · %s back · %s new folder · %s new ssh login · %s edit · %s copy password · %s delete · %s quit",
-		c("open"), c("back"), c("new_folder"), c("new_login"), c("edit"), c("copy_password"), l("delete"), l("quit"))
+	help := fmt.Sprintf("%s open/connect · %s back · %s new folder · %s new ssh login · %s edit · %s copy password · %s jumpable · %s delete · %s quit",
+		c("open"), c("back"), c("new_folder"), c("new_login"), c("edit"), c("copy_password"), c("toggle_jumpable"), l("delete"), l("quit"))
 	b.WriteString("  " + styleMuted.Render(help) + "\n")
 	if m.confirmDrop != "" {
 		what := m.store.path(m.confirmDrop)
@@ -346,6 +348,7 @@ func sshFolderForm(s *sshStore, edit *sshNode, parent string) string {
 	for _, ic := range sshIcons {
 		iconOpts = append(iconOpts, huh.NewOption(ic, ic))
 	}
+	iconOpts, parentOpts = chosenFirst(iconOpts, icon), chosenFirst(parentOpts, parent)
 	title := "New client folder"
 	if edit != nil {
 		title = "Edit " + s.path(edit.ID)
@@ -487,6 +490,17 @@ func sshLoginForm(s *sshStore, edit *sshNode, parent string) string {
 		viaOpts = append(viaOpts, huh.NewOption(label, n.ID))
 	}
 	viaOpts = append(viaOpts, huh.NewOption("Other host — type it in", ""))
+	// A new login without a typed jump host starts on the first jumpable login.
+	if via == "" && jumpHost == "" && len(hops) > 0 {
+		via = hops[0].ID
+	}
+	viaOpts = chosenFirst(viaOpts, via)
+	folderOpts = chosenFirst(folderOpts, parent)
+	viaHelp := "Logins marked jumpable: their host, port and password are used, and stay in step if they change."
+	if len(hops) == 0 {
+		viaHelp = "No logins are marked jumpable yet — answer Yes to \"Can other logins jump through this one?\" " +
+			"on one, or press j on it in payload ssh table. Until then, type the jump host."
+	}
 	title, keep := "New ssh login", ""
 	if edit != nil {
 		title, keep = "Edit "+s.path(edit.ID)+".ssh", " Leave empty to keep the saved one."
@@ -500,16 +514,18 @@ func sshLoginForm(s *sshStore, edit *sshNode, parent string) string {
 				Value(&command).Validate(checkSSHCommand),
 			huh.NewInput().Title("Password").Description("Saved in the env vault, bound to this login."+keep).
 				EchoMode(huh.EchoModePassword).Value(&pw),
-			huh.NewConfirm().Title("Can other logins jump through this one?").
-				Description("Marks it jumpable: other logins can then pick it as their jump host.").
-				Affirmative("Yes").Negative("No").Value(&jumpable),
+		),
+		huh.NewGroup(
 			huh.NewConfirm().Title("Through a jump host (-J)?").Affirmative("Yes").Negative("No").Value(&useJump),
+			huh.NewConfirm().Title("Can other logins jump through this one?").
+				Description("Marks it jumpable: other logins can then pick it under \"Jump through\".").
+				Affirmative("Yes").Negative("No").Value(&jumpable),
 		),
 		huh.NewGroup(
 			huh.NewSelect[string]().Title("Jump through").
-				Description("A jumpable login: its host, port and password are used, and stay in step if it changes.").
+				Description(viaHelp).
 				Options(viaOpts...).Value(&via),
-		).WithHideFunc(func() bool { return !useJump || len(viaOpts) == 1 }),
+		).WithHideFunc(func() bool { return !useJump }),
 		huh.NewGroup(
 			huh.NewInput().Title("Jump host").Description("e.g. admin@1.2.3.4 (several: a@h1,b@h2)").Value(&jumpHost).
 				Validate(func(v string) error {
@@ -632,4 +648,40 @@ func folderIcon(n sshNode) string {
 		}
 	}
 	return firstNonEmpty(n.Icon, "📁")
+}
+
+// toggleJumpable marks the selected login jumpable (others can pick it as their jump host) or not.
+func (m *sshTableModel) toggleJumpable() string {
+	r := m.rows[m.cursor]
+	n := m.store.get(r.ID)
+	if n == nil || n.Type != sshLogin {
+		return styleMuted.Render("Only ssh logins can be jump hosts.")
+	}
+	n.Jumpable = !n.Jumpable
+	if err := m.store.save(); err != nil {
+		n.Jumpable = !n.Jumpable
+		return styleErr.Render("✗ could not save: " + err.Error())
+	}
+	m.rows[m.cursor] = *n
+	if n.Jumpable {
+		return styleOK.Render("✓ " + n.Name + ".ssh is jumpable — other logins can pick it under Jump through")
+	}
+	msg := "✓ " + n.Name + ".ssh is no longer jumpable"
+	if users := m.store.jumpUsers(n.ID); len(users) > 0 {
+		msg += styleMuted.Render(" (the " + plural(len(users), "login") + " already using it keep it)")
+	}
+	return styleOK.Render(msg)
+}
+
+// chosenFirst moves the option holding value to the top. huh scrolls a select so its chosen option
+// is the first line shown, hiding every option above it until ↑ is pressed; with the chosen one
+// first, the whole list shows.
+func chosenFirst[T comparable](opts []huh.Option[T], value T) []huh.Option[T] {
+	for i, o := range opts {
+		if o.Value == value && i > 0 {
+			out := append([]huh.Option[T]{o}, opts[:i]...)
+			return append(out, opts[i+1:]...)
+		}
+	}
+	return opts
 }

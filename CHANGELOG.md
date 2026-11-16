@@ -3,6 +3,17 @@
 Every release has a section here; the release build publishes it as the GitHub release notes and
 `payload doctor` shows it under "What's new" before updating. `payload changelog` prints this file.
 
+## v2.8.0 — 2026-11-16
+
+- **`payload ssh`** shows each login's ssh command after its path, dimmed
+  (`folder1/db  / ssh root@10.0.0.5`). **ctrl+o** hides or shows it and payload remembers the choice
+  (`ssh_show_command` in `settings.json`); the key is configurable as `ssh_pick.toggle_command`.
+- **`j`** in `payload ssh table` marks a login jumpable (or not) without opening the form.
+- The login form asks "Through a jump host?" and "Can other logins jump through this one?" on their
+  own page, and **Jump through** always lists the jumpable logins (a new login starts on the first).
+- Fixed choice lists in the ssh forms (jump host, client folder, icon, parent) hiding the options
+  above the current one until ↑ was pressed.
+
 ## v2.7.0 — 2026-11-16
 
 - **Shared jump hosts:** mark an ssh login as **jumpable** ("Can other logins jump through this

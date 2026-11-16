@@ -53,12 +53,16 @@ func defaultBindings() bindings {
 			"settings": {"s"},
 		},
 		"ssh_table": {
-			"open":          {"enter"},
-			"back":          {"backspace", "left"},
-			"new_folder":    {"n"},
-			"new_login":     {"s"},
-			"edit":          {"e"},
-			"copy_password": {"p"},
+			"open":            {"enter"},
+			"back":            {"backspace", "left"},
+			"new_folder":      {"n"},
+			"new_login":       {"s"},
+			"edit":            {"e"},
+			"copy_password":   {"p"},
+			"toggle_jumpable": {"j"},
+		},
+		"ssh_pick": {
+			"toggle_command": {"ctrl+o"},
 		},
 		"client_settings": {
 			"hold": {"space", "enter", "h"},
@@ -76,9 +80,14 @@ var binds = defaultBindings()
 // updateCheck turns the daily "new version available" check on or off (settings: "update_check").
 var updateCheck = true
 
+// sshShowCommand shows each login's ssh command, dimmed, in the payload ssh list (settings:
+// "ssh_show_command"; toggled with ssh_pick.toggle_command and remembered).
+var sshShowCommand = true
+
 type settingsFile struct {
 	Help        string   `json:"_help,omitempty"`
 	UpdateCheck *bool    `json:"update_check,omitempty"`
+	SSHShowCmd  *bool    `json:"ssh_show_command,omitempty"`
 	Name        string   `json:"name,omitempty"`
 	Keybinds    bindings `json:"keybinds"`
 }
@@ -100,6 +109,9 @@ func loadSettings() {
 	}
 	if f.UpdateCheck != nil {
 		updateCheck = *f.UpdateCheck
+	}
+	if f.SSHShowCmd != nil {
+		sshShowCommand = *f.SSHShowCmd
 	}
 	for section, actions := range f.Keybinds {
 		for action, ks := range actions {
@@ -127,7 +139,7 @@ func writeDefaultSettings() (created bool, err error) {
 	data, _ := json.MarshalIndent(settingsFile{
 		Help: "Key bindings for payload. Each action takes a list of keys, e.g. \"ctrl+s\", \"enter\", \"esc\", " +
 			"\"space\", \"up\", \"pgdown\", \"x\". Remove an action (or this whole file) to use its default keys. " +
-			"Ctrl+C always quits. env_table, curl_table, clients_table, client_settings and ssh_table only add their own keys (show/hide; run/edit/add; send/refresh/settings; hold); they move, copy and delete with the table keys. update_check: false stops the daily check for new versions. name: what other computers see in their payload clients table (set it with: payload settings set-name).",
+			"Ctrl+C always quits. env_table, curl_table, clients_table, client_settings, ssh_table and ssh_pick only add their own keys (show/hide; run/edit/add; send/refresh/settings; hold; show/hide the ssh command in payload ssh); they move, copy and delete with the table keys. update_check: false stops the daily check for new versions. name: what other computers see in their payload clients table (set it with: payload settings set-name).",
 		UpdateCheck: &on,
 		Keybinds:    defaultBindings(),
 	}, "", "  ")

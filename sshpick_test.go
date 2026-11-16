@@ -3,6 +3,9 @@ package main
 import (
 	"strings"
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 )
 
 func TestFuzzyMatchSSHPick(t *testing.T) {
@@ -96,5 +99,38 @@ func TestJumpVia(t *testing.T) {
 	}
 	if _, err := s.get("b1b1b1").args(); err == nil || !strings.Contains(err.Error(), "deleted") {
 		t.Fatalf("expected a deleted-jump error, got %v", err)
+	}
+}
+
+func TestChosenFirst(t *testing.T) {
+	opts := []huh.Option[string]{huh.NewOption("a", "a"), huh.NewOption("b", "b"), huh.NewOption("c", "c")}
+	got := chosenFirst(opts, "c")
+	if got[0].Value != "c" || got[1].Value != "a" || got[2].Value != "b" || len(got) != 3 {
+		t.Fatalf("chosenFirst = %v", got)
+	}
+	if got := chosenFirst(opts, "a"); got[0].Value != "a" || got[1].Value != "b" {
+		t.Fatalf("already first = %v", got)
+	}
+}
+
+func TestSSHPickToggleCommandRemembered(t *testing.T) {
+	t.Setenv("PAYLOAD_STORE", t.TempDir())
+	defer func() { sshShowCommand = true }()
+	sshShowCommand = true
+	m := newSSHPickModel([]sshPickItem{{id: "a", num: 1, path: "folder1/db", command: "ssh root@10.0.0.5"}})
+	if !strings.Contains(m.View(), "/ ssh root@10.0.0.5") {
+		t.Fatal("command should show by default")
+	}
+	mm, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlO})
+	if strings.Contains(mm.View(), "root@10.0.0.5") {
+		t.Fatal("ctrl+o should hide the command")
+	}
+	sshShowCommand = true
+	loadSettings() // what the next run reads
+	if sshShowCommand {
+		t.Fatal("hidden state should be remembered in settings.json")
+	}
+	if got := sshDisplayCommand("root@h -p 22"); got != "ssh root@h -p 22" {
+		t.Fatalf("sshDisplayCommand = %q", got)
 	}
 }

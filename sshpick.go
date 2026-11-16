@@ -21,6 +21,7 @@ type sshPickItem struct {
 	num      int
 	jump     bool
 	icon     string // the client's emoji or logo, drawn one line tall and two cells wide
+	command  string // the saved ssh command, e.g. "ssh root@10.0.0.5", shown dimmed when toggled on
 }
 
 type sshPickMatch struct {
@@ -63,7 +64,7 @@ func sshPickItems(s *sshStore) []sshPickItem {
 		}
 		args, _ := n.args()
 		_, jump := sshTarget(args)
-		items = append(items, sshPickItem{id: n.ID, num: n.Num, path: s.path(n.ID), jump: jump != "", icon: sshPickIcon(s, &n, logos)})
+		items = append(items, sshPickItem{id: n.ID, num: n.Num, path: s.path(n.ID), jump: jump != "", icon: sshPickIcon(s, &n, logos), command: sshDisplayCommand(n.Command)})
 	}
 	sort.Slice(items, func(i, j int) bool { return strings.ToLower(items[i].path) < strings.ToLower(items[j].path) })
 	return items
@@ -175,6 +176,7 @@ type sshPickModel struct {
 	height  int // rows of results that fit
 	// numWidth is the widest login number, so the numbers line up right-aligned.
 	numWidth int
+	showCmd  bool // show each login's ssh command, dimmed (remembered in settings.json)
 
 	action, target string
 }
@@ -186,7 +188,7 @@ func newSSHPickModel(items []sshPickItem) sshPickModel {
 	in.Placeholder = "search, e.g. folder2/, folder1 mst01 or a number"
 	in.Width = 60 // without a width the placeholder shows only its first letter
 	in.Focus()
-	m := sshPickModel{items: items, input: in, height: 15, numWidth: 1}
+	m := sshPickModel{items: items, input: in, height: 15, numWidth: 1, showCmd: sshShowCommand}
 	for _, it := range items {
 		m.numWidth = max(m.numWidth, len(strconv.Itoa(it.num)))
 	}
@@ -203,6 +205,12 @@ func (m sshPickModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.clamp()
 		return m, nil
 	case tea.KeyMsg:
+		if pressed(msg, "ssh_pick", "toggle_command") {
+			m.showCmd = !m.showCmd
+			sshShowCommand = m.showCmd
+			_ = saveSetting("ssh_show_command", m.showCmd)
+			return m, nil
+		}
 		switch msg.String() {
 		case "ctrl+c", "esc":
 			return m, tea.Quit
@@ -293,6 +301,9 @@ func (m sshPickModel) View() string {
 		if mt.item.jump {
 			line.WriteString(styleMuted.Render(" - has jump"))
 		}
+		if m.showCmd && mt.item.command != "" {
+			line.WriteString(styleSmall.Render("  / " + mt.item.command))
+		}
 		marker := "  "
 		if i == m.cursor {
 			marker = hl.Render("▌ ")
@@ -303,7 +314,11 @@ func (m sshPickModel) View() string {
 		}
 		b.WriteString(marker + num + "  " + mt.item.icon + " " + line.String() + "\n")
 	}
-	b.WriteString("\n" + styleSmall.Render("↑/↓ move · enter connect · ctrl+t table · esc quit"))
+	cmdWord := "show"
+	if m.showCmd {
+		cmdWord = "hide"
+	}
+	b.WriteString("\n" + styleSmall.Render("↑/↓ move · enter connect · "+keyLabel("ssh_pick", "toggle_command")+" "+cmdWord+" ssh · ctrl+t table · esc quit"))
 	return b.String()
 }
 
@@ -365,4 +380,16 @@ func sshNewCmd() {
 			fmt.Println(styleMuted.Render(fmt.Sprintf("  connect: payload ssh %d   ·   copy password: payload ssh %d -p", newest.Num, newest.Num)))
 		}
 	}
+}
+
+// sshDisplayCommand is a saved command as typed at a shell: with its leading "ssh".
+func sshDisplayCommand(command string) string {
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return ""
+	}
+	if f := strings.Fields(command)[0]; f == "ssh" || f == "ssh.exe" {
+		return command
+	}
+	return "ssh " + command
 }
