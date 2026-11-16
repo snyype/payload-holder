@@ -60,6 +60,8 @@ cannot be empty, `.` or `..`, or contain any of `/ \ : * ? " < > |`.
 | `payload ssh show <path>` | Print a login's ssh command (no passwords) | yes |
 | `payload ssh export [file.zip] [--no-passwords]` | Zip of all folders, logos and logins; passwords encrypted with a passphrase (`PAYLOAD_SSH_PASSPHRASE`) | yes |
 | `payload ssh import <file.zip> -y` | Add/update folders and logins by ID from an export | yes, with `-y` |
+| `payload ssh settings` | Set, change or remove the master password for payload ssh | no — interactive |
+| `payload ssh lock` / `unlock` | Lock now / unlock for 10 hours. While locked (master password set), every other `payload ssh` command fails without a terminal: ask the user to run `payload ssh unlock` | lock: yes · unlock: no |
 | `payload curl path` | Print the curl `payload curl` runs: the bundled `bin/curl/curl.exe` if present, else the one on PATH | yes |
 | `payload curl install` | Download the bundled curl for this release, verified against SHA256SUMS (Windows only) | yes |
 | `payload clients` | Table of computers running `listen`; enter opens a text area, Ctrl+S sends to that one; `s` opens clipboard settings to hold a client's text for approval. Piped: prints the table | prints the table when piped |

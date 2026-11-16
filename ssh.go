@@ -588,6 +588,19 @@ func sshCmd(args []string) {
 	if len(args) > 0 {
 		sub = args[0]
 	}
+	// The master password guards every payload ssh command except the ones that manage it.
+	switch sub {
+	case "lock":
+		sshLockCmd()
+		return
+	case "unlock":
+		sshUnlockCmd()
+		return
+	case "settings":
+		sshSettingsCmd()
+		return
+	}
+	requireSSHUnlock()
 	switch sub {
 	case "":
 		sshPickCmd()

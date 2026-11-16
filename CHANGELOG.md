@@ -3,6 +3,18 @@
 Every release has a section here; the release build publishes it as the GitHub release notes and
 `payload doctor` shows it under "What's new" before updating. `payload changelog` prints this file.
 
+## v2.9.0 — 2026-11-16
+
+- **Master password for payload ssh:** `payload ssh settings` sets, changes or removes one. Every
+  `payload ssh` command (the list, `table`, `list`, `new`, connecting, `-p`, export/import…) then asks
+  for it and stays unlocked for **10 hours** on that computer. **`payload ssh lock`** locks at once,
+  **`payload ssh unlock`** unlocks ahead of time. Only a salted PBKDF2 hash is kept
+  (`vault/ssh-lock.json`, not synced — delete it if you forget the password).
+- **`payload ssh`** shows 10 logins at a time; ↑/↓ scroll through all of them and wrap around.
+  While searching, every match is shown.
+- Fixed **Jump through** (and the other choice lists in the ssh forms) showing only the last option
+  until ↑ was pressed.
+
 ## v2.8.0 — 2026-11-16
 
 - **`payload ssh`** shows each login's ssh command after its path, dimmed

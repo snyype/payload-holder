@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -132,5 +133,33 @@ func TestSSHPickToggleCommandRemembered(t *testing.T) {
 	}
 	if got := sshDisplayCommand("root@h -p 22"); got != "ssh root@h -p 22" {
 		t.Fatalf("sshDisplayCommand = %q", got)
+	}
+}
+
+func TestSSHPickTenRowsAndAllMatches(t *testing.T) {
+	var items []sshPickItem
+	for i := 1; i <= 25; i++ {
+		path := fmt.Sprintf("folder1/host%02d", i)
+		if i > 15 {
+			path = fmt.Sprintf("folder2/host%02d", i)
+		}
+		items = append(items, sshPickItem{id: path, num: i, path: path})
+	}
+	shown := func(m tea.Model) int { return strings.Count(m.View(), "/host") }
+	var m tea.Model = newSSHPickModel(items)
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+	if n := shown(m); n != 10 {
+		t.Fatalf("idle list shows %d rows, want 10", n)
+	}
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp}) // wraps to the last login
+	if v := m.View(); !strings.Contains(v, "folder2/host25") || shown(m) != 10 {
+		t.Fatalf("↑ from the top should show the last login in a 10-row window:\n%s", v)
+	}
+	for _, r := range "folder1" {
+		m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	want := len(filterSSHPick(items, "folder1")) // fuzzy: more than the 15 folder1 logins
+	if n := shown(m); n != want || want <= sshPickRows {
+		t.Fatalf("search shows %d rows, want all %d matches", n, want)
 	}
 }

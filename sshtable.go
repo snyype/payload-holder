@@ -363,7 +363,7 @@ func sshFolderForm(s *sshStore, edit *sshNode, parent string) string {
 		),
 		huh.NewGroup(
 			huh.NewSelect[string]().Title("Icon").Description("Shown next to the client in payload ssh table").
-				Options(iconOpts...).Value(&icon),
+				Options(iconOpts...).Height(selectHeight(len(iconOpts), "Shown next to the client in payload ssh table")).Value(&icon),
 		).WithHideFunc(func() bool { return !top }),
 		huh.NewGroup(
 			huh.NewInput().Title("Logo image").
@@ -385,7 +385,7 @@ func sshFolderForm(s *sshStore, edit *sshNode, parent string) string {
 	if len(parentOpts) > 0 {
 		groups = append(groups, huh.NewGroup(
 			huh.NewSelect[string]().Title("Parent client").Description("The folder this one goes inside").
-				Options(parentOpts...).Value(&parent),
+				Options(parentOpts...).Height(selectHeight(len(parentOpts), "The folder this one goes inside")).Value(&parent),
 		).WithHideFunc(func() bool { return top }))
 	}
 	if err := huh.NewForm(groups...).WithTheme(theme()).WithShowHelp(true).Run(); err != nil {
@@ -507,7 +507,7 @@ func sshLoginForm(s *sshStore, edit *sshNode, parent string) string {
 	}
 	err := huh.NewForm(
 		huh.NewGroup(
-			huh.NewSelect[string]().Title("Client folder").Options(folderOpts...).Value(&parent),
+			huh.NewSelect[string]().Title("Client folder").Options(folderOpts...).Height(selectHeight(len(folderOpts), "")).Value(&parent),
 			huh.NewInput().Title(title).Description("Login name, e.g. onboarding or onboarding-db (shown as onboarding.ssh)").
 				Value(&name).Validate(func(v string) error { return sshNameError(strings.TrimSpace(v)) }),
 			huh.NewInput().Title("ssh command").Description("e.g. ssh root@10.0.0.5  (or -p 2222 root@10.0.0.5)").
@@ -524,7 +524,7 @@ func sshLoginForm(s *sshStore, edit *sshNode, parent string) string {
 		huh.NewGroup(
 			huh.NewSelect[string]().Title("Jump through").
 				Description(viaHelp).
-				Options(viaOpts...).Value(&via),
+				Options(viaOpts...).Height(selectHeight(len(viaOpts), viaHelp)).Value(&via),
 		).WithHideFunc(func() bool { return !useJump }),
 		huh.NewGroup(
 			huh.NewInput().Title("Jump host").Description("e.g. admin@1.2.3.4 (several: a@h1,b@h2)").Value(&jumpHost).
@@ -684,4 +684,15 @@ func chosenFirst[T comparable](opts []huh.Option[T], value T) []huh.Option[T] {
 		}
 	}
 	return opts
+}
+
+// selectHeight is the height to give a huh select: its title, description and every option (up to
+// a cap, after which it scrolls). Without an explicit height huh sizes the list before it is shown
+// and scrolls it to the bottom, so only the last option is visible until ↑ is pressed.
+func selectHeight(options int, description string) int {
+	h := 1 + options // title + options
+	if description != "" {
+		h += 1 + len([]rune(description))/76 // wrapped at a typical form width
+	}
+	return min(h, 18)
 }

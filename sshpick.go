@@ -173,7 +173,7 @@ type sshPickModel struct {
 	input   textinput.Model
 	cursor  int
 	offset  int
-	height  int // rows of results that fit
+	height  int // rows of results that fit in the terminal (see rows)
 	// numWidth is the widest login number, so the numbers line up right-aligned.
 	numWidth int
 	showCmd  bool // show each login's ssh command, dimmed (remembered in settings.json)
@@ -239,11 +239,11 @@ func (m sshPickModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.clamp()
 			return m, nil
 		case "pgup":
-			m.cursor = max(0, m.cursor-m.height)
+			m.cursor = max(0, m.cursor-m.rows())
 			m.clamp()
 			return m, nil
 		case "pgdown":
-			m.cursor = max(0, min(len(m.matches)-1, m.cursor+m.height))
+			m.cursor = max(0, min(len(m.matches)-1, m.cursor+m.rows()))
 			m.clamp()
 			return m, nil
 		}
@@ -264,8 +264,8 @@ func (m *sshPickModel) clamp() {
 	if m.cursor < m.offset {
 		m.offset = m.cursor
 	}
-	if m.cursor >= m.offset+m.height {
-		m.offset = m.cursor - m.height + 1
+	if m.cursor >= m.offset+m.rows() {
+		m.offset = m.cursor - m.rows() + 1
 	}
 }
 
@@ -280,7 +280,7 @@ func (m sshPickModel) View() string {
 	}
 	hl := lipgloss.NewStyle().Foreground(sshCyan).Bold(true)
 	sel := lipgloss.NewStyle().Bold(true)
-	end := min(len(m.matches), m.offset+m.height)
+	end := min(len(m.matches), m.offset+m.rows())
 	for i := m.offset; i < end; i++ {
 		mt := m.matches[i]
 		at := map[int]bool{}
@@ -392,4 +392,17 @@ func sshDisplayCommand(command string) string {
 		return command
 	}
 	return "ssh " + command
+}
+
+// sshPickRows is how many logins the list shows at once before a search; ↑/↓ scroll through the
+// rest (and wrap around).
+const sshPickRows = 10
+
+// rows is how many results are drawn: sshPickRows while the search is empty, every match while
+// searching — both limited to what fits in the terminal.
+func (m sshPickModel) rows() int {
+	if strings.TrimSpace(m.input.Value()) == "" {
+		return max(1, min(sshPickRows, m.height))
+	}
+	return max(1, m.height)
 }

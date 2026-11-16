@@ -258,6 +258,12 @@ a jump host show ` - has jump`. Each row also shows its ssh command, dimmed (`/ 
   (`ssh.exe` + `libcrypto.dll`, checked against the SHA-256 GitHub publishes) at `C:\payload\bin\ssh\`,
   installed and updated like the bundled curl, and not on PATH. Without it payload uses Windows' own
   ssh; on macOS/Linux the ssh on PATH.
+- **Master password.** `payload ssh settings` sets one (or changes / removes it). After that, every
+  `payload ssh` command (the list, `table`, `list`, `new`, connecting, `-p`, export…) asks for it,
+  then stays unlocked for **10 hours** on this computer. `payload ssh lock` locks it at once;
+  `payload ssh unlock` unlocks ahead of time. Only a salted PBKDF2 hash is kept
+  (`vault/ssh-lock.json`, not synced); forgot it? Delete that file. It keeps payload ssh closed to
+  someone at your unlocked computer — it doesn't encrypt the logins or the env vault.
 
 ## Sync with GitHub
 

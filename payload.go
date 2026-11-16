@@ -163,6 +163,8 @@ func usage() {
 		{"payload ssh export [file.zip]", "all clients, icons and logins in a zip (passwords encrypted)"},
 		{"payload ssh import <file.zip>", "add or update clients and logins from an export"},
 		{"payload ssh path|install", "the ssh payload runs / download the bundled ssh (Windows)"},
+		{"payload ssh settings", "set, change or remove a master password for every payload ssh command"},
+		{"payload ssh lock|unlock", "lock payload ssh now / unlock it for 10 hours with the master password"},
 		{"payload auth login", "log in with GitHub (for sync); the token is stored encrypted"},
 		{"payload auth status|logout", "show the login and check it still works / delete it"},
 		{"payload sync push", "make your private <you>/payload-sync repo match this computer"},
