@@ -3,6 +3,23 @@
 Every release has a section here; the release build publishes it as the GitHub release notes and
 `payload doctor` shows it under "What's new" before updating. `payload changelog` prints this file.
 
+## v2.6.0 — 2026-11-16
+
+- **`payload ssh`** now opens a search list of every login as `folder/login`, fzf-style: type to
+  filter (fuzzy; space-separated terms must all match), ↑/↓ to move (wraps around), enter to
+  connect, ctrl+t for the table. Each row shows the login's number and its client's icon; logins
+  through a jump host show ` - has jump`.
+- **Login numbers:** every ssh login gets a fixed number in creation order (folders don't).
+  `payload ssh 45` connects, **`payload ssh 45 -p`** copies its password without connecting, and
+  typing the number in the search list jumps to it. `payload ssh list` prints the numbers.
+- **`payload ssh new`** opens the add-login form (it asks for a client folder first if there is none).
+- The folder table moved to **`payload ssh table`** (`payload ssh clients` still works) and is now a
+  clean one-line-per-entry list: logos are drawn at text height and the large preview is gone.
+- Opening a login copies its password to the clipboard right away, before ssh starts (each prompt
+  still copies the matching one).
+- Sharper logos: empty edges are cropped, colours are averaged in linear light, tiny icons keep the
+  logo's real colours instead of blending them, and new logos are kept at 128 px.
+
 ## v2.5.0 — 2026-11-04
 
 - New **`payload ssh clients`**: ssh logins in client folders (e.g. folder1 → subfolder1 → onboarding.ssh).
