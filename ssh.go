@@ -31,6 +31,12 @@ type sshNode struct {
 	Command     string `json:"command,omitempty"`      // ssh logins: e.g. ssh root@10.0.0.5
 	Jump        string `json:"jump,omitempty"`         // jump host(s) for -J, e.g. admin@1.2.3.4
 	PasswordEnv string `json:"password_env,omitempty"` // env vault name; "" means the bound ssh_<id>
+
+	// Jumpable logins can be picked as the jump host of other logins. JumpVia is such a login's ID:
+	// its host (and port) become this login's -J, and its password the jump password — looked up
+	// each time, so changing the jump login updates every login that goes through it.
+	Jumpable bool   `json:"jumpable,omitempty"`
+	JumpVia  string `json:"jump_via,omitempty"`
 }
 
 // envName is the env vault entry holding the login's password(s): bound to the login's ID
@@ -43,17 +49,79 @@ func (n *sshNode) envName() string {
 }
 
 // args is the login's ssh arguments, with the jump host as -J (options go before the host).
-func (n *sshNode) args() ([]string, error) {
+func (n *sshNode) args() ([]string, error) { return n.argsDepth(0) }
+
+func (n *sshNode) argsDepth(depth int) ([]string, error) {
 	args, err := sshArgs(n.Command)
 	if err != nil {
 		return nil, err
 	}
-	if n.Jump != "" {
+	jump := n.Jump
+	if n.JumpVia != "" {
+		if jump, err = jumpSpec(n.JumpVia, depth); err != nil {
+			return nil, err
+		}
+	}
+	if jump != "" {
 		if _, j := sshTarget(args); j == "" {
-			args = append([]string{"-J", n.Jump}, args...)
+			args = append([]string{"-J", jump}, args...)
 		}
 	}
 	return args, nil
+}
+
+// jumpLogin is the login another one jumps through (nil if it was deleted).
+func jumpLogin(id string) *sshNode {
+	s, err := loadSSH()
+	if err != nil {
+		return nil
+	}
+	if j := s.get(id); j != nil && j.Type == sshLogin {
+		return j
+	}
+	return nil
+}
+
+// jumpSpec is the -J value for jumping through the login with this ID: its user@host, with :port
+// if it uses -p, after its own jump hosts if it has any.
+func jumpSpec(id string, depth int) (string, error) {
+	if depth > 4 {
+		return "", errors.New("its jump hosts go round in a loop — edit it (e) to pick another")
+	}
+	j := jumpLogin(id)
+	if j == nil {
+		return "", errors.New("the login it jumps through was deleted — edit it (e) to pick another")
+	}
+	args, err := j.argsDepth(depth + 1)
+	if err != nil {
+		return "", err
+	}
+	target, chain := sshTarget(args)
+	if target == "" {
+		return "", errors.New("the login it jumps through has no host")
+	}
+	if p := sshPort(args); p != "" {
+		target += ":" + p
+	}
+	if chain != "" {
+		target = chain + "," + target
+	}
+	return target, nil
+}
+
+// sshPort is the -p value in ssh arguments, if any.
+func sshPort(args []string) string {
+	for i, a := range args {
+		switch {
+		case a == "--":
+			return ""
+		case a == "-p" && i+1 < len(args):
+			return args[i+1]
+		case strings.HasPrefix(a, "-p") && len(a) > 2:
+			return a[2:]
+		}
+	}
+	return ""
 }
 
 // splitJump takes a -J value out of a command, so it is stored once in the Jump field.
@@ -86,6 +154,21 @@ func splitJump(command string) (rest, jump string) {
 // the server and the jump host alike. Names are "" when there's no entry.
 func loginPasswords(n *sshNode, env map[string]string, hasJump bool) (serverName, jumpName string) {
 	name := n.envName()
+	if n.JumpVia != "" {
+		// The jump password is the jump login's own (server) password.
+		serverName = name
+		if _, ok := env[name]; !ok {
+			if _, ok := env[name+".server"]; ok {
+				serverName = name + ".server"
+			}
+		}
+		if hasJump {
+			if j := jumpLogin(n.JumpVia); j != nil && j.ID != n.ID {
+				jumpName, _ = loginPasswords(j, env, false)
+			}
+		}
+		return serverName, jumpName
+	}
 	if _, ok := env[name]; ok {
 		if hasJump {
 			return name, name
@@ -566,4 +649,19 @@ func sshCmd(args []string) {
 		}
 		sshConnect(s, n, args[1:])
 	}
+}
+
+// jumpUsers lists the logins outside id's subtree that jump through a login inside it.
+func (s *sshStore) jumpUsers(id string) []string {
+	gone := map[string]bool{}
+	for _, d := range s.descendants(id) {
+		gone[d] = true
+	}
+	var out []string
+	for _, n := range s.Nodes {
+		if n.Type == sshLogin && n.JumpVia != "" && gone[n.JumpVia] && !gone[n.ID] {
+			out = append(out, n.ID)
+		}
+	}
+	return out
 }

@@ -52,7 +52,7 @@ cannot be empty, `.` or `..`, or contain any of `/ \ : * ? " < > |`.
 | `payload curl drop <name>...` | Delete saved curl requests after a y/N confirmation | yes, pipe `y` |
 | `payload curl table [page]` | Browse requests: enter run, e edit, a add, c copy, d delete | prints one page when piped |
 | `payload ssh` | Fuzzy search list of every login as folder/login (enter connect, ctrl+t table) | prints the list when piped |
-| `payload ssh new` | Form to add an ssh login (asks for a client folder first if there is none) | no — interactive |
+| `payload ssh new` | Form to add an ssh login (asks for a client folder first if there is none); a login can be marked jumpable and others can pick it as their jump host | no — interactive |
 | `payload ssh table` | Table of client folders and ssh logins (n folder, s login, enter connect); alias `clients` | prints a tree when piped |
 | `payload ssh <folder/login\|num>` | Connect; copies each password to the clipboard when ssh prompts — needs the user at the terminal | no — interactive |
 | `payload ssh <folder/login\|num> -p` | Copy the login's password to the clipboard without connecting | yes |

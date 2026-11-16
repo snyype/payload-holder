@@ -236,6 +236,11 @@ a jump host show ` - has jump`. `payload ssh new` adds a login; `payload ssh tab
 - **Passwords are bound to the login.** They go into the env vault under the login's ID: one entry,
   `ssh_<id>`, holding both when there's a jump host (`{"server": "…", "jump": "…"}`, shown in
   `payload env table` as `ssh_<id>.server` and `ssh_<id>.jump`). Deleting the login removes them.
+- **Shared jump hosts:** in the login form, answer *Yes* to "Can other logins jump through this one?"
+  to mark a login **jumpable** (e.g. your bastion). Other logins then pick it under *Jump through*
+  instead of typing a jump host: its user@host (and `-p` port) become their `-J`, and its password
+  is the jump password. It is looked up on every connect, so changing the bastion updates every
+  login that goes through it. *Other host* still lets you type a jump host and password by hand.
 - **Connecting** (enter, or `payload ssh folder1/subfolder1/onboarding`) runs ssh in your terminal. At each
   password prompt — the jump host's first, then the server's — payload copies the matching password
   to the clipboard at that moment and shows the prompt; paste it (right-click or Ctrl+V). Nothing is

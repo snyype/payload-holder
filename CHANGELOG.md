@@ -3,6 +3,15 @@
 Every release has a section here; the release build publishes it as the GitHub release notes and
 `payload doctor` shows it under "What's new" before updating. `payload changelog` prints this file.
 
+## v2.7.0 — 2026-11-16
+
+- **Shared jump hosts:** mark an ssh login as **jumpable** ("Can other logins jump through this
+  one?" in the login form) and other logins can pick it under *Jump through* instead of typing a
+  jump host. Its user@host (and `-p` port) become their `-J` and its password is the jump password,
+  looked up on every connect, so changing the jump login updates every login that goes through it.
+  *Other host* still takes a jump host and password typed by hand.
+- The table shows `· jumpable` and `via host (#N)`; deleting a login others jump through warns first.
+
 ## v2.6.0 — 2026-11-16
 
 - **`payload ssh`** now opens a search list of every login as `folder/login`, fzf-style: type to

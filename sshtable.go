@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -277,6 +278,9 @@ func (m sshTableModel) View() string {
 		if n := len(m.store.descendants(m.confirmDrop)) - 1; n > 0 {
 			what += fmt.Sprintf(" and the %d entries inside it", n)
 		}
+		if users := m.store.jumpUsers(m.confirmDrop); len(users) > 0 {
+			what += fmt.Sprintf(" (%s jump through it and will need another jump host)", plural(len(users), "login"))
+		}
 		b.WriteString(styleWarn.Render("Delete "+what+"? ") + styleMuted.Render(l("confirm_delete")+" to delete · any other key cancels") + "\n")
 	} else {
 		b.WriteString(m.status + "\n")
@@ -294,6 +298,12 @@ func loginDetails(n sshNode, env map[string]string) string {
 	s := target
 	if jump != "" {
 		s += " via " + jump
+		if j := jumpLogin(n.JumpVia); n.JumpVia != "" && j != nil {
+			s += fmt.Sprintf(" (#%d)", j.Num)
+		}
+	}
+	if n.Jumpable {
+		s += " · jumpable"
 	}
 	serverName, jumpName := loginPasswords(&n, env, jump != "")
 	mark := func(name string) string {
@@ -448,15 +458,35 @@ func sshLoginForm(s *sshStore, edit *sshNode, parent string) string {
 	if parent == "" {
 		parent = folders[0].ID
 	}
-	var name, command, jumpHost, pw, jumpPW string
+	var name, command, jumpHost, pw, jumpPW, via string
+	jumpable := false
 	if edit != nil {
-		name, command, jumpHost = edit.Name, edit.Command, edit.Jump
+		name, command, jumpHost, via, jumpable = edit.Name, edit.Command, edit.Jump, edit.JumpVia, edit.Jumpable
 	}
-	useJump := jumpHost != ""
+	useJump := jumpHost != "" || via != ""
 	var folderOpts []huh.Option[string]
 	for _, f := range folders {
 		folderOpts = append(folderOpts, huh.NewOption(s.path(f.ID), f.ID))
 	}
+	// Logins marked jumpable can be picked as this one's jump host; "" means typing one in.
+	var hops []sshNode
+	for _, n := range s.Nodes {
+		if n.Type == sshLogin && (n.Jumpable || n.ID == via) && (edit == nil || n.ID != edit.ID) {
+			hops = append(hops, n)
+		}
+	}
+	sort.Slice(hops, func(i, j int) bool { return hops[i].Num < hops[j].Num })
+	var viaOpts []huh.Option[string]
+	for _, n := range hops {
+		label := fmt.Sprintf("#%d %s", n.Num, s.path(n.ID))
+		if args, err := n.args(); err == nil {
+			if t, _ := sshTarget(args); t != "" {
+				label += "  (" + t + ")"
+			}
+		}
+		viaOpts = append(viaOpts, huh.NewOption(label, n.ID))
+	}
+	viaOpts = append(viaOpts, huh.NewOption("Other host — type it in", ""))
 	title, keep := "New ssh login", ""
 	if edit != nil {
 		title, keep = "Edit "+s.path(edit.ID)+".ssh", " Leave empty to keep the saved one."
@@ -470,8 +500,16 @@ func sshLoginForm(s *sshStore, edit *sshNode, parent string) string {
 				Value(&command).Validate(checkSSHCommand),
 			huh.NewInput().Title("Password").Description("Saved in the env vault, bound to this login."+keep).
 				EchoMode(huh.EchoModePassword).Value(&pw),
+			huh.NewConfirm().Title("Can other logins jump through this one?").
+				Description("Marks it jumpable: other logins can then pick it as their jump host.").
+				Affirmative("Yes").Negative("No").Value(&jumpable),
 			huh.NewConfirm().Title("Through a jump host (-J)?").Affirmative("Yes").Negative("No").Value(&useJump),
 		),
+		huh.NewGroup(
+			huh.NewSelect[string]().Title("Jump through").
+				Description("A jumpable login: its host, port and password are used, and stay in step if it changes.").
+				Options(viaOpts...).Value(&via),
+		).WithHideFunc(func() bool { return !useJump || len(viaOpts) == 1 }),
 		huh.NewGroup(
 			huh.NewInput().Title("Jump host").Description("e.g. admin@1.2.3.4 (several: a@h1,b@h2)").Value(&jumpHost).
 				Validate(func(v string) error {
@@ -483,7 +521,7 @@ func sshLoginForm(s *sshStore, edit *sshNode, parent string) string {
 			huh.NewInput().Title("Jump host password").
 				Description("Saved in the same env entry. Leave empty if it's the same as the password above."+keep).
 				EchoMode(huh.EchoModePassword).Value(&jumpPW),
-		).WithHideFunc(func() bool { return !useJump }),
+		).WithHideFunc(func() bool { return !useJump || via != "" }),
 	).WithTheme(theme()).WithShowHelp(true).Run()
 	if err != nil {
 		return styleMuted.Render("Nothing saved.")
@@ -491,12 +529,15 @@ func sshLoginForm(s *sshStore, edit *sshNode, parent string) string {
 
 	name = strings.TrimSpace(name)
 	command, fromCommand := splitJump(strings.TrimSpace(command)) // a pasted -J moves to the jump field
-	if !useJump {
-		jumpHost, jumpPW = "", ""
+	switch {
+	case !useJump:
+		jumpHost, jumpPW, via = "", "", ""
 		if fromCommand != "" {
 			jumpHost = fromCommand
 		}
-	} else if strings.TrimSpace(jumpHost) == "" {
+	case via != "":
+		jumpHost, jumpPW = "", "" // the jump login supplies both
+	case strings.TrimSpace(jumpHost) == "":
 		jumpHost = fromCommand
 	}
 	jumpHost = strings.TrimSpace(jumpHost)
@@ -513,6 +554,7 @@ func sshLoginForm(s *sshStore, edit *sshNode, parent string) string {
 		node = &s.Nodes[len(s.Nodes)-1]
 	}
 	node.Parent, node.Name, node.Command, node.Jump = parent, name, command, jumpHost
+	node.JumpVia, node.Jumpable = via, jumpable
 	if err := saveLoginPasswords(node, pw, jumpPW); err != nil {
 		return styleErr.Render("✗ could not save the password: " + err.Error())
 	}
