@@ -3,6 +3,11 @@
 Every release has a section here; the release build publishes it as the GitHub release notes and
 `payload doctor` shows it under "What's new" before updating. `payload changelog` prints this file.
 
+## v2.10.1 — 2026-11-19
+
+- Fixed **`payload ssh`** on Linux and macOS not logging in after the password was entered: ssh kept
+  waiting because the clipboard holder (payload's own, xclip or wl-copy) held its answer pipe open.
+
 ## v2.10.0 — 2026-11-19
 
 - **The master password now guards the env vault too.** When one is set (`payload ssh settings`),

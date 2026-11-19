@@ -56,6 +56,7 @@ func hostOf(dest string) string {
 
 // sshAskpass answers one prompt from ssh: it writes the answer to stdout, which ssh reads.
 func sshAskpass(prompt string) {
+	keepFDsFromChildren() // the clipboard holder must not keep ssh's answer pipe open
 	in, out, err := openConsole()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "payload: cannot open the terminal to ask %q: %v\n", strings.TrimSpace(prompt), err)
