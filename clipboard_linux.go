@@ -34,6 +34,12 @@ func holdInBackground(text string) error {
 	}
 	cmd := exec.Command(exe, holdArg)
 	cmd.Stdin = strings.NewReader(text)
+	// Started from the ssh askpass helper: don't pass on its PAYLOAD_* settings.
+	for _, kv := range os.Environ() {
+		if !strings.HasPrefix(kv, askpassEnv+"=") && !strings.HasPrefix(kv, "PAYLOAD_SSH_") {
+			cmd.Env = append(cmd.Env, kv)
+		}
+	}
 	// Own session: no controlling terminal, so closing the terminal or Ctrl+C does not kill it.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	out, err := cmd.StdoutPipe()

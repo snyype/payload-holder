@@ -46,12 +46,14 @@ func validKey(k string) bool {
 }
 
 func main() {
-	if os.Getenv(askpassEnv) == "1" && len(os.Args) == 2 {
-		sshAskpass(os.Args[1]) // ssh asking for a password during "payload ssh"
-		return
-	}
+	// The holder check comes first: the holder is started from the askpass helper and would
+	// otherwise be mistaken for ssh asking a question.
 	if len(os.Args) > 1 && os.Args[1] == holdArg {
 		runClipboardHolder()
+		return
+	}
+	if os.Getenv(askpassEnv) == "1" && len(os.Args) == 2 {
+		sshAskpass(os.Args[1]) // ssh asking for a password during "payload ssh"
 		return
 	}
 	initTerminal()

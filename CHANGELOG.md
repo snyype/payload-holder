@@ -3,6 +3,12 @@
 Every release has a section here; the release build publishes it as the GitHub release notes and
 `payload doctor` shows it under "What's new" before updating. `payload changelog` prints this file.
 
+## v2.9.1 — 2026-11-19
+
+- Fixed **`payload ssh`** on Linux failing to copy the password at the prompt ("could not copy …:
+  no clipboard available (clipboard holder exited)"). payload's built-in clipboard now works there
+  without xclip or wl-clipboard installed.
+
 ## v2.9.0 — 2026-11-16
 
 - **Master password for payload ssh:** `payload ssh settings` sets, changes or removes one. Every
