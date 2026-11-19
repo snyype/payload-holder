@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -294,5 +295,26 @@ func TestSSHExportImport(t *testing.T) {
 		checkImportedNodes([]sshNode{{ID: "a1b2c3", Type: sshLogin, Name: "x", Parent: "999999"}}) == nil ||
 		checkImportedNodes([]sshNode{{ID: "a1b2c3", Type: sshFolder, Name: "x", Logo: "../evil.png"}}) == nil {
 		t.Error("a hostile export was accepted")
+	}
+}
+
+func TestReadMasked(t *testing.T) {
+	cases := []struct{ in, paste, want, echo string }{
+		{"abc\r", "", "abc", "***"},
+		{"ab\x7fc\r", "", "ac", "**\b \b*"},
+		{"\x16\r", "s3cr3t", "s3cr3t", "******"},
+		{"x\x15\x16\n", "pw", "pw", "*\b \b**"},
+		{"\x1b[200~pässw\x1b[201~\r", "", "pässw", "*****"}, // bracketed paste
+		{"a\x1b[Db\r", "", "ab", "**"},                      // arrow key ignored
+	}
+	for _, c := range cases {
+		var echo strings.Builder
+		got, err := readMasked(strings.NewReader(c.in), &echo, c.paste)
+		if err != nil || got != c.want || echo.String() != c.echo {
+			t.Errorf("readMasked(%q) = %q, %v, echo %q; want %q, echo %q", c.in, got, err, echo.String(), c.want, c.echo)
+		}
+	}
+	if _, err := readMasked(strings.NewReader("ab\x03"), io.Discard, ""); err != errAborted {
+		t.Errorf("Ctrl+C: %v", err)
 	}
 }

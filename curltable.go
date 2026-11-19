@@ -232,7 +232,13 @@ func (m curlTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.confirmDrop = m.current().name
 	case pressed(k, "table", "copy"):
 		r := m.current()
-		args, _, missing, err := curlArgs(r.command)
+		var args, missing []string
+		var err error
+		if placeholder.MatchString(r.command) && isLocked() {
+			err = errLocked // can't ask for the master password inside the table
+		} else {
+			args, _, missing, err = curlArgs(r.command)
+		}
 		if err == nil {
 			err = copyText("curl " + quoteWords(args))
 		}

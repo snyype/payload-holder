@@ -46,8 +46,12 @@ func loadEnv() (map[string]string, error) {
 	return vals, err
 }
 
-// loadEnvGroups is loadEnv plus the set of names that are groups.
+// loadEnvGroups is loadEnv plus the set of names that are groups. It never asks for the master
+// password: while payload is locked it returns errLocked (commands call requireUnlock first).
 func loadEnvGroups() (map[string]string, map[string]bool, error) {
+	if isLocked() {
+		return nil, nil, errLocked
+	}
 	vals, groups := map[string]string{}, map[string]bool{}
 	data, err := os.ReadFile(envPath())
 	if os.IsNotExist(err) {
@@ -78,8 +82,10 @@ func loadEnvGroups() (map[string]string, map[string]bool, error) {
 	return vals, groups, nil
 }
 
-// mustLoadEnv is loadEnv for commands that can't go on without the vault.
+// mustLoadEnv is loadEnv for commands that can't go on without the vault; it asks for the master
+// password when payload is locked.
 func mustLoadEnv() map[string]string {
+	requireUnlock()
 	vals, err := loadEnv()
 	if err != nil {
 		fail("cannot read env vault: %v", err)
@@ -92,6 +98,9 @@ func mustLoadEnv() map[string]string {
 // with the same name as a group is dropped in favour of the group.
 func saveEnv(vals map[string]string, newGroups ...string) error {
 	_, groups, err := loadEnvGroups()
+	if err == errLocked {
+		return err // never rewrite the vault without having read it
+	}
 	if err != nil {
 		groups = map[string]bool{}
 	}
@@ -147,6 +156,7 @@ func expandEnv(data []byte) ([]byte, []string) {
 	if !placeholder.Match(data) {
 		return data, nil
 	}
+	requireUnlock()
 	vals, err := loadEnv()
 	if err != nil {
 		settingsWarn("Placeholders not filled in: cannot read env vault: %v", err)
@@ -186,6 +196,7 @@ func envUsage() {
 }
 
 func envCmd(args []string) {
+	requireUnlock() // every payload env command needs the master password, when one is set
 	if len(args) == 0 {
 		envList()
 		return

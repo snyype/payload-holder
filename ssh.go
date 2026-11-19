@@ -600,7 +600,7 @@ func sshCmd(args []string) {
 		sshSettingsCmd()
 		return
 	}
-	requireSSHUnlock()
+	requireUnlock()
 	switch sub {
 	case "":
 		sshPickCmd()

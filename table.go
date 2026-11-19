@@ -181,6 +181,9 @@ func (m tableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		key := m.rows[m.page*perPage+m.cursor].key
 		data, err := os.ReadFile(filepath.Join(m.dir, key+".json"))
 		var missing []string
+		if err == nil && placeholder.Match(data) && isLocked() {
+			err = errLocked // can't ask for the master password inside the table
+		}
 		if err == nil {
 			data, missing = expandEnv(data)
 			err = copyText(strings.TrimSpace(string(data)))

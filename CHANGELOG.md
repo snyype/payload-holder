@@ -3,6 +3,18 @@
 Every release has a section here; the release build publishes it as the GitHub release notes and
 `payload doctor` shows it under "What's new" before updating. `payload changelog` prints this file.
 
+## v2.10.0 — 2026-11-19
+
+- **The master password now guards the env vault too.** When one is set (`payload ssh settings`),
+  every `payload env` command and anything that fills in `{{name}}` values (printing or copying a
+  payload, `payload curl` runs) asks for it, then stays unlocked for 10 hours alongside payload ssh.
+  Without a terminal these fail with "payload is locked"; inside `payload table` and
+  `payload curl table`, copying an entry with `{{name}}` values says so instead.
+  `payload ssh lock` / `unlock` lock and unlock both.
+- **`payload ssh` password prompt:** shows `*` for each character typed or pasted, and **Ctrl+V**
+  pastes the saved password on every system — even where Ctrl+V isn't the terminal's paste key (Linux)
+  or the clipboard can't be reached. Ctrl+Shift+V (Linux) and right-click still paste too.
+
 ## v2.9.1 — 2026-11-19
 
 - Fixed **`payload ssh`** on Linux failing to copy the password at the prompt ("could not copy …:

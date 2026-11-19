@@ -70,3 +70,45 @@ func TestSSHMasterPassword(t *testing.T) {
 		t.Fatal("master password not removed")
 	}
 }
+
+// With a master password set and payload locked, the env vault can't be read or rewritten; once
+// unlocked it reads as usual.
+func TestEnvVaultLocked(t *testing.T) {
+	t.Setenv("PAYLOAD_STORE", t.TempDir())
+	t.Cleanup(func() { unlocked = false })
+	if err := saveEnv(map[string]string{"token": "abc", "grp.server": "pw"}, "grp"); err != nil {
+		t.Fatal(err)
+	}
+	if err := setSSHMasterPassword("hunter22"); err != nil {
+		t.Fatal(err)
+	}
+	lockSSH()
+	if !isLocked() {
+		t.Fatal("should be locked")
+	}
+	if _, err := loadEnv(); err != errLocked {
+		t.Fatalf("loadEnv while locked: %v", err)
+	}
+	before, _ := os.ReadFile(envPath())
+	if err := saveEnv(map[string]string{"token": "x"}); err != errLocked {
+		t.Fatalf("saveEnv while locked: %v", err)
+	}
+	if after, _ := os.ReadFile(envPath()); string(after) != string(before) {
+		t.Fatal("vault rewritten while locked")
+	}
+
+	l, _ := loadSSHLock()
+	if err := startSSHSession(l); err != nil {
+		t.Fatal(err)
+	}
+	if isLocked() {
+		t.Fatal("should be unlocked")
+	}
+	vals, err := loadEnv()
+	if err != nil || vals["token"] != "abc" || vals["grp.server"] != "pw" {
+		t.Fatalf("loadEnv after unlock: %v %v", vals, err)
+	}
+	if out, missing := expandEnv([]byte(`{{token}}`)); string(out) != "abc" || len(missing) > 0 {
+		t.Fatalf("expandEnv after unlock: %s %v", out, missing)
+	}
+}
