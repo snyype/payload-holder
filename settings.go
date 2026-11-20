@@ -228,8 +228,11 @@ func settingsCmd(args []string) {
 		case "name":
 			fmt.Println(clientName())
 			return
+		case "smtp", "mail":
+			smtpCmd(args[1:])
+			return
 		}
-		fail("unknown settings command %q — use: payload settings, payload settings name, payload settings set-name <name>", args[0])
+		fail("unknown settings command %q — use: payload settings, payload settings name, payload settings set-name <name>, payload settings smtp", args[0])
 	}
 	path := settingsPath()
 	if _, err := os.Stat(path); err != nil {

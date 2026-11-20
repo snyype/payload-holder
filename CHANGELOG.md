@@ -3,6 +3,17 @@
 Every release has a section here; the release build publishes it as the GitHub release notes and
 `payload doctor` shows it under "What's new" before updating. `payload changelog` prints this file.
 
+## v2.11.0 — 2026-11-20
+
+- **Forgot the master password? `payload ssh forgot`** emails a one-time 6-digit reset code to the
+  email on your `payload auth login`; enter it and choose a new master password. The code works once,
+  for 15 minutes and 5 tries. Also in `payload ssh settings` ("I forgot it"), and the lock prompt
+  points to it after a few wrong tries. A "master password changed" email follows the reset.
+- **`payload settings smtp`** sets up how payload sends email: **Mailtrap** with an API token (the
+  default, with an optional sandbox inbox), or **Other** — Gmail, Outlook / Microsoft 365, Zoho,
+  SendGrid, Mailgun, Amazon SES or any SMTP server. The password or token is stored encrypted
+  (`vault/smtp.json`, not synced). `payload settings smtp test` sends a test email.
+
 ## v2.10.1 — 2026-11-19
 
 - Fixed **`payload ssh`** on Linux and macOS not logging in after the password was entered: ssh kept

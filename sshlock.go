@@ -185,7 +185,7 @@ func requireUnlock() {
 	if !interactive {
 		fail("payload is locked — run payload ssh unlock in a terminal first")
 	}
-	if !askSSHMasterPassword(l, "🔒 payload is locked", "Master password — unlocks payload ssh and the env vault for 10 hours.") {
+	if !askSSHMasterPassword(l, "🔒 payload is locked", "Master password — unlocks payload ssh and the env vault for 10 hours. Forgot it? Ctrl+C, then payload ssh forgot.") {
 		fail("payload is still locked")
 	}
 	if err := startSSHSession(l); err != nil {
@@ -198,7 +198,8 @@ func requireUnlock() {
 
 // askSSHMasterPassword asks until the master password is right; false if the form is left.
 func askSSHMasterPassword(l *sshLock, title, description string) bool {
-	var pw, ok string
+	var pw, ok, last string
+	wrong := 0
 	err := huh.NewForm(huh.NewGroup(
 		huh.NewInput().Title(title).Description(description).EchoMode(huh.EchoModePassword).Value(&pw).
 			Validate(func(v string) error {
@@ -206,6 +207,13 @@ func askSSHMasterPassword(l *sshLock, title, description string) bool {
 					return nil // already checked (huh validates again when the field loses focus)
 				}
 				if !l.check(v) {
+					if v != last {
+						last = v
+						wrong++
+					}
+					if wrong >= 3 {
+						return errors.New("wrong master password — forgot it? Ctrl+C, then payload ssh forgot")
+					}
 					return errors.New("wrong master password")
 				}
 				ok = v
@@ -256,9 +264,14 @@ func sshSettingsCmd() {
 		Options(huh.NewOption("Change the master password", "change"),
 			huh.NewOption("Remove the master password", "remove"),
 			huh.NewOption("Lock payload now", "lock"),
+			huh.NewOption("I forgot it — email me a reset code", "forgot"),
 			huh.NewOption("Cancel", "")).
-		Height(selectHeight(4, "")).Value(&choice).WithTheme(theme()).Run() != nil || choice == "" {
+		Height(selectHeight(5, "")).Value(&choice).WithTheme(theme()).Run() != nil || choice == "" {
 		fmt.Println(styleMuted.Render("Nothing changed."))
+		return
+	}
+	if choice == "forgot" {
+		sshForgotCmd()
 		return
 	}
 	if choice == "lock" {
@@ -292,7 +305,7 @@ func sshSettingsCmd() {
 func newSSHMasterPassword() (string, bool) {
 	var pw, again string
 	err := huh.NewForm(huh.NewGroup(
-		huh.NewInput().Title("New master password").Description("At least 6 characters. If you forget it, delete "+sshLockPath()+".").
+		huh.NewInput().Title("New master password").Description("At least 6 characters. If you forget it, payload ssh forgot emails you a reset code.").
 			EchoMode(huh.EchoModePassword).Value(&pw).Validate(func(v string) error {
 			if len([]rune(v)) < 6 {
 				return errors.New("use at least 6 characters")

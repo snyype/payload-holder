@@ -61,6 +61,9 @@ cannot be empty, `.` or `..`, or contain any of `/ \ : * ? " < > |`.
 | `payload ssh export [file.zip] [--no-passwords]` | Zip of all folders, logos and logins; passwords encrypted with a passphrase (`PAYLOAD_SSH_PASSPHRASE`) | yes |
 | `payload ssh import <file.zip> -y` | Add/update folders and logins by ID from an export | yes, with `-y` |
 | `payload ssh settings` | Set, change or remove the master password for payload ssh and the env vault | no — interactive |
+| `payload ssh forgot` | Forgotten master password: emails a one-time code to the `payload auth login` email (via `payload settings smtp`), then asks for a new password | no — interactive |
+| `payload settings smtp` | Set up the mail provider for reset codes: Mailtrap (API token, default) or any SMTP server | no — interactive |
+| `payload settings smtp test [email]` / `status` / `remove` | Send a test email / show / remove the mail provider | yes |
 | `payload ssh lock` / `unlock` | Lock now / unlock for 10 hours. While locked (master password set), every other `payload ssh` command, every `payload env` command, and anything that fills in `{{name}}` values (printing/copying a payload, `payload curl`) fails without a terminal with "payload is locked": ask the user to run `payload ssh unlock` | lock: yes · unlock: no |
 | `payload curl path` | Print the curl `payload curl` runs: the bundled `bin/curl/curl.exe` if present, else the one on PATH | yes |
 | `payload curl install` | Download the bundled curl for this release, verified against SHA256SUMS (Windows only) | yes |

@@ -599,6 +599,9 @@ func sshCmd(args []string) {
 	case "settings":
 		sshSettingsCmd()
 		return
+	case "forgot", "reset":
+		sshForgotCmd()
+		return
 	}
 	requireUnlock()
 	switch sub {

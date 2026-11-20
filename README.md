@@ -265,8 +265,20 @@ a jump host show ` - has jump`. Each row also shows its ssh command, dimmed (`/ 
   computer. Inside `payload table` / `payload curl table`, copying an entry with `{{name}}` values
   while locked shows "payload is locked" instead. `payload ssh lock` locks it at once;
   `payload ssh unlock` unlocks ahead of time. Only a salted PBKDF2 hash is kept
-  (`vault/ssh-lock.json`, not synced); forgot it? Delete that file. It keeps payload ssh and the env
-  vault closed to someone at your unlocked computer — it doesn't encrypt the logins or the env vault.
+  (`vault/ssh-lock.json`, not synced). It keeps payload ssh and the env vault closed to someone at
+  your unlocked computer — it doesn't encrypt the logins or the env vault.
+- **Forgot the master password?** `payload ssh forgot` (or *I forgot it* in `payload ssh settings`)
+  emails a one-time 6-digit code to the email on your `payload auth login`; enter it and choose a new
+  master password. The code works once, for 15 minutes and 5 tries, and is never written to disk.
+  It needs two things: a GitHub login with a verified email (`payload auth login`) and a mail
+  provider (`payload settings smtp` — it offers to set one up if there is none). Without email you
+  can still delete `vault/ssh-lock.json`.
+- **Mail provider.** `payload settings smtp` sets up how payload sends email: **Mailtrap** (default —
+  paste an API token; the from address must be on a domain verified in Mailtrap, and an optional
+  sandbox inbox ID catches the mail instead of delivering it) or **Other**: Gmail, Outlook /
+  Microsoft 365, Zoho, SendGrid, Mailgun, Amazon SES or any SMTP server (STARTTLS, SSL/TLS).
+  Kept in `vault/smtp.json` with the password or token encrypted (DPAPI on Windows), not synced.
+  `payload settings smtp test [email]` sends a test email; `status` and `remove` do what they say.
 
 ## Sync with GitHub
 
